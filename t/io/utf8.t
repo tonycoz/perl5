@@ -332,13 +332,14 @@ is($failed, undef);
     eval { 
 	my $line = <F>;
     };
-    my ($chrE4, $chrF6) = ("E4", "F6");
-    if ($::IS_EBCDIC) { ($chrE4, $chrF6) = ("43", "EC"); } # EBCDIC
-    like( $@, qr/^Malformed UTF-8 character: \\xe4\\x0a \(unexpected non-continuation byte 0x0a, immediately after start byte 0xe4; need 3 bytes, got 1\)/,
+    my ($chrE4, $chrF6) = ("e4", "f6");
+    if ($::IS_EBCDIC) { ($chrE4, $chrF6) = ("43", "ec"); } # EBCDIC
+    my $chr0A = sprintf("%02x", ord("\n"));
+    like( $@, qr/^Malformed UTF-8 character: \\x$chrE4\\x$chr0A \(unexpected non-continuation byte 0x$chr0A, immediately after start byte 0x$chrE4; need 3 bytes, got 1\)/,
       "<:utf8 readline must warn about bad utf8");
     undef $@;
     eval { $line .= <F> };
-    like( $@, qr/Malformed UTF-8 character: \\xf6\\x0a \(unexpected non-continuation byte 0x0a, immediately after start byte 0xf6; need 4 bytes, got 1\)/, 
+    like( $@, qr/Malformed UTF-8 character: \\x$chrF6\\x$chr0A \(unexpected non-continuation byte 0x$chr0A, immediately after start byte 0x$chrF6; need 4 bytes, got 1\)/, 
       "<:utf8 rcatline must warn about bad utf8");
     close F;
 }
