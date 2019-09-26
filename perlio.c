@@ -5218,7 +5218,18 @@ PerlIOUnicode_readdelim(pTHX_ PerlIO *f, STDCHAR *vbuf, Size_t count, STDCHAR de
     }
 }
 
-PERLIO_FUNCS_DECL(PerlIO_utf8) = {
+IV
+PerlIOUnicode_seek(pTHX_ PerlIO *f, Off_t offset, int whence)
+{
+    IV code;
+    if ((code = PerlIOBuf_seek(f, offset, whence)) == 0) {
+        PerlIOUnicode *s = PerlIOSelf(f, PerlIOUnicode);
+        s->leftover_length = 0;
+    }
+    return code;
+}
+
+ PERLIO_FUNCS_DECL(PerlIO_utf8) = {
     sizeof(PerlIO_funcs),
     "utf8",
     sizeof(PerlIOUnicode),
@@ -5233,7 +5244,7 @@ PERLIO_FUNCS_DECL(PerlIO_utf8) = {
     PerlIOBuf_read,
     PerlIOBuf_unread,
     PerlIOBuf_write,
-    PerlIOBuf_seek,
+    PerlIOUnicode_seek,
     PerlIOBuf_tell,
     PerlIOBuf_close,
     PerlIOBuf_flush,

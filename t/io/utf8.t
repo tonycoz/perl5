@@ -393,4 +393,24 @@ SKIP: {
     }
 }
 
+{
+    # needs to encode to at least 3 bytes
+    my $extra = "\x{7FFFFFFF}";
+    my $data = "a" x 8190 . $extra;
+    utf8::encode($data);
+    open my $fh, ">", $a_file
+      or die;
+    binmode $fh;
+    print $fh $data;
+    close $fh or die;
+    open $fh, "<:utf8(loose)", $a_file
+      or die;
+    my $buf;
+    read($fh, $buf, 8190);
+    is(tell($fh), 8190, "check tell is properly adjusted");
+    ok(seek($fh, 8190, SEEK_SET), "do a seek");
+    is(read($fh, $buf, 1), 1, "read that extra character");
+    is($buf, $extra, "check we read it back");
+}
+
 done_testing();
