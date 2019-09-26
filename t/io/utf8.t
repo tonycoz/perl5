@@ -10,8 +10,6 @@ skip_all_without_perlio();
 no utf8; # needed for use utf8 not griping about the raw octets
 
 
-plan(tests => 61);
-
 $| = 1;
 
 my $a_file = tempfile();
@@ -394,3 +392,5 @@ SKIP: {
 	  'getc returning non-utf8 after utf8';
     }
 }
+
+done_testing();
