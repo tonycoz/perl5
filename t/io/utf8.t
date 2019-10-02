@@ -124,7 +124,8 @@ close(F);
 	local $SIG{__WARN__} = sub { $w = $_[0] };
 	print F $a;
         ok( (!$@));
-	like($w, qr/Wide character in print/i );
+	like($w, qr/Wide character in print/i,
+             "check wide character message");
     }
 }
 
@@ -338,9 +339,15 @@ is($failed, undef);
     like( $@, qr/^Malformed UTF-8 character: \\x$chrE4\\x$chr0A \(unexpected non-continuation byte 0x$chr0A, immediately after start byte 0x$chrE4; need 3 bytes, got 1\)/,
       "<:utf8 readline must warn about bad utf8");
     undef $@;
+    ok(*F->error, "stream should be in error");
+    # seek in place and clear the error so we (try) to process
+    # the next few bytes
+    seek(F, 0, SEEK_CUR);
+    *F->clearerr;
     eval { $line .= <F> };
-    like( $@, qr/Malformed UTF-8 character: \\x$chrF6\\x$chr0A \(unexpected non-continuation byte 0x$chr0A, immediately after start byte 0x$chrF6; need 4 bytes, got 1\)/, 
+    like( $@, qr/Malformed UTF-8 character: \\x$chrE4\\x$chr0A \(unexpected non-continuation byte 0x$chr0A, immediately after start byte 0x$chrE4; need 3 bytes, got 1\)/,
       "<:utf8 rcatline must warn about bad utf8");
+    ok(*F->error, "again, stream should be in error");
     close F;
 }
 

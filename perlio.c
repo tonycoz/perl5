@@ -4937,8 +4937,7 @@ PERLIO_FUNCS_DECL(PerlIO_crlf) = {
 };
 
 static STRLEN
-validate(pTHX_ const U8 *buf, const U8 *end, const U32 flags, PerlIO* handle) {
-    const bool eof = PerlIO_eof(handle);
+validate(pTHX_ const U8 *buf, const U8 *end, const U32 flags, bool eof, PerlIO* handle) {
     const U8 *spos;
     U32 myflags = flags | (eof ? 0 : UTF8_ALLOW_SHORT);
     U32 isflags = flags & (UTF8_DISALLOW_ILLEGAL_INTERCHANGE | UTF8_DISALLOW_PERL_EXTENDED);
@@ -4957,6 +4956,10 @@ validate(pTHX_ const U8 *buf, const U8 *end, const U32 flags, PerlIO* handle) {
             && msgs && av_tindex(msgs) >= 0) {
             SSize_t i;
             SV *fullmsg = sv_2mortal(newSVpvs(""));
+
+            /* fail the stream */
+            PerlIOBase(handle)->flags |= PERLIO_F_ERROR;
+
             for (i = 0; i <= av_tindex(msgs); ++i) {
                 SV **h = av_fetch(msgs, 0, FALSE);
                 SV **msg;
@@ -5074,6 +5077,8 @@ PerlIOUnicode_fill(pTHX_ PerlIO* f) {
 
     if (PerlIO_flush(f) != 0)
         return -1;
+    if (PerlIOBase(f)->flags & PERLIO_F_ERROR)
+        return -1;
     if (PerlIOBase(f)->flags & PERLIO_F_TTY)
         PerlIOBase_flush_linebuf(aTHX);
 
@@ -5137,7 +5142,7 @@ PerlIOUnicode_fill(pTHX_ PerlIO* f) {
         }
     }
     end = b->buf + read_bytes;
-    b->end = b->buf + validate(aTHX_ (const U8 *)b->buf, (const U8 *)end, u->flags, n);
+    b->end = b->buf + validate(aTHX_ (const U8 *)b->buf, (const U8 *)end, u->flags, PerlIO_eof(n), f);
     if (b->end < end) {
         size_t len = b->buf + read_bytes - b->end;
         Copy(b->end, u->leftovers, len, char);
@@ -5162,6 +5167,9 @@ PerlIOUnicode_readdelim(pTHX_ PerlIO *f, STDCHAR *vbuf, Size_t count, STDCHAR de
         Size_t read = 0, also = 0;
         STDCHAR *validated = NULL, *end = NULL;
         int seen = FALSE;
+
+        if (PerlIOBase(f)->flags & PERLIO_F_ERROR)
+            return -1;
 
         if (avail == 0) {
             if (PerlIO_flush(f) != 0)
@@ -5206,7 +5214,7 @@ PerlIOUnicode_readdelim(pTHX_ PerlIO *f, STDCHAR *vbuf, Size_t count, STDCHAR de
             also = PerlIO_readdelim(n, vbuf + read, count - read, delim);
         read += also;
         end = vbuf + read;
-        validated = vbuf + validate(aTHX_ (const U8 *)vbuf, (const U8 *) end, u->flags, n);
+        validated = vbuf + validate(aTHX_ (const U8 *)vbuf, (const U8 *) end, u->flags, PerlIO_eof(n), f);
         if (validated < end) {
             size_t len = end - validated;
             Copy(validated, u->leftovers, len, char);
