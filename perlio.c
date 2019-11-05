@@ -5031,8 +5031,10 @@ parse_parameters(pTHX_ SV* param) {
     const char *begin, *delim;
     U32 ret = UTF8_DISALLOW_NONCHAR | UTF8_DISALLOW_SURROGATE | UTF8_DISALLOW_SUPER;
 
-    if (!param || !SvOK(param))
-        return ret;
+    if (!param || !SvOK(param)) {
+        /* or in shifted to enable messages */
+        return ( ret | ( ret << 1 ) );
+    }
 
     begin = SvPV(param, len);
     delim = strchr(begin, ',');
@@ -5051,7 +5053,8 @@ parse_parameters(pTHX_ SV* param) {
         parse_one_parameter(aTHX_ begin, len, &ret);
     }
 
-    return ret;
+    /* or in shifted to enable messages */
+    return ( ret | (ret << 1) );
 }
 
 static IV

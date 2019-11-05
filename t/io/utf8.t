@@ -421,4 +421,31 @@ SKIP: {
     is($buf, $extra, "check we read it back");
 }
 
+{
+    # test each allow-* option
+    my @tests =
+      (
+          [ "surrogates", "A\x{D800}\x{D801}\x{DFFE}\x{DFFF}B" ],
+          [ "noncharacters", "A\x{FDD0}\x{FDEF}\x{FFFE}\x{FFFF}B" ],
+          [ "super", "A\x{102000}\x{7FFFFFFF}B" ],
+         );
+    for my $test (@tests) {
+        my ($key, $str) = @$test;
+        utf8::encode(my $bytes = $str);
+        # make sure it fails with the default strict
+        open my $fh, "<:utf8", \$bytes
+          or die;
+        my $out;
+        ok(!eval { read($fh, $out, length $str); 1 },
+           "can't read from data with $key");
+        close $fh;
+        open my $fh, "<:utf8(allow_$key)", \$bytes
+          or die;
+        undef $out;
+        ok(eval { read($fh, $out, length $str) },
+           "read from data with $key with allow_$key");
+        is($out, $str, "make sure source matches result for $key");
+    }
+}
+
 done_testing();
