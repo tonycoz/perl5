@@ -4981,11 +4981,18 @@ validate(pTHX_ const U8 *buf, const U8 *end, const U32 flags, bool eof, PerlIO* 
     return spos - buf;
 }
 
+typedef enum {
+    uem_na,
+    uem_croak,  /* croak */
+    uem_failwarn, /* fail the stream and warn */
+} UnicodeErrorMode;
+
 typedef struct {
     PerlIOBuf buf;
     STDCHAR leftovers[UTF8_MAXBYTES];
     size_t leftover_length;
     U32 flags;
+    UnicodeErrorMode error_mode;
 } PerlIOUnicode;
 
 typedef struct {
@@ -4993,76 +5000,87 @@ typedef struct {
     size_t length;
     U32 value;
     U32 mask;
+    UnicodeErrorMode error_mode;
 } PerlIOUnicodeFlag;
 
 static const PerlIOUnicodeFlag
 map[] = {
-    { STR_WITH_LEN("allow_surrogates"), 0, UTF8_DISALLOW_SURROGATE },
-    { STR_WITH_LEN("allow_noncharacters"), 0, UTF8_DISALLOW_NONCHAR },
-    { STR_WITH_LEN("allow_super"), 0, UTF8_DISALLOW_SUPER },
+    { STR_WITH_LEN("allow_surrogates"), 0, UTF8_DISALLOW_SURROGATE, uem_na },
+    { STR_WITH_LEN("allow_noncharacters"), 0, UTF8_DISALLOW_NONCHAR, uem_na },
+    { STR_WITH_LEN("allow_super"), 0, UTF8_DISALLOW_SUPER, uem_na },
 
     /* not implemented, and requires changes to the stream */
     /* { STR_WITH_LEN("allow_nonshortest"), UTF8_ALLOW_LONG, 0 }, */
     { STR_WITH_LEN("strict"),
-      UTF8_DISALLOW_NONCHAR | UTF8_DISALLOW_SURROGATE | UTF8_DISALLOW_SUPER, 0 },
+      UTF8_DISALLOW_NONCHAR | UTF8_DISALLOW_SURROGATE | UTF8_DISALLOW_SUPER, 0, uem_na },
     { STR_WITH_LEN("loose"),
       0,
-      UTF8_DISALLOW_SURROGATE | UTF8_DISALLOW_NONCHAR | UTF8_DISALLOW_SUPER
-    }
+      UTF8_DISALLOW_SURROGATE | UTF8_DISALLOW_NONCHAR | UTF8_DISALLOW_SUPER,
+      uem_na
+    },
+    { STR_WITH_LEN("error=failwarn"), 0, 0, uem_failwarn },
+    { STR_WITH_LEN("error=croak"), 0, 0, uem_failwarn },
 };
 
 static void
-parse_one_parameter(pTHX_ const char* ptr, size_t len, U32 *flags) {
+parse_one_parameter(pTHX_ const char* ptr, size_t len, U32 *flags, UnicodeErrorMode *mode) {
     unsigned i;
     for (i = 0; i < sizeof map / sizeof *map; ++i) {
-        if (map[i].length == len && memcmp(ptr, map[i].name, len) == 0) {
-            U32 mask = map[i].mask ? map[i].mask : map[i].value;
-            *flags &= ~mask;
-            *flags |= map[i].value;
+        const PerlIOUnicodeFlag *m = map + i;
+        if (m->length == len && memcmp(ptr, m->name, len) == 0) {
+            if (m->mask || m->value) {
+                U32 mask = map[i].mask ? m->mask : m->value;
+                *flags &= ~mask;
+                *flags |= m->value;
+            }
+            else {
+                assert(m->error_mode != uem_na);
+                *mode = m->error_mode;
+            }
             return;
         }
     }
     Perl_croak(aTHX_ "Unknown argument to :utf8: %*s", (int)len, ptr);
 }
  
-static U32
-parse_parameters(pTHX_ SV* param) {
-    STRLEN len;
-    const char *begin, *delim;
-    U32 ret = UTF8_DISALLOW_NONCHAR | UTF8_DISALLOW_SURROGATE | UTF8_DISALLOW_SUPER;
+static void
+parse_parameters(pTHX_ SV* param, U32 *flags, UnicodeErrorMode *error_mode) {
+    *flags = UTF8_DISALLOW_NONCHAR | UTF8_DISALLOW_SURROGATE | UTF8_DISALLOW_SUPER;
+    *error_mode = uem_croak;
 
-    if (!param || !SvOK(param)) {
-        /* or in shifted to enable messages */
-        return ( ret | ( ret << 1 ) );
-    }
-
-    begin = SvPV(param, len);
-    delim = strchr(begin, ',');
-    if(delim) {
-        const char* end = begin + len;
-        do {
-            parse_one_parameter(aTHX_ begin, delim - begin, &ret);
-            begin = delim + 1;
-            delim = strchr(begin, ',');
-        } while (delim);
-        if (begin < end) {
-            parse_one_parameter(aTHX_ begin, end - begin, &ret);
+    if (param && SvOK(param)) {
+        STRLEN len;
+        const char *begin = SvPV(param, len);
+        const char *delim = strchr(begin, ',');
+        if(delim) {
+            const char* end = begin + len;
+            do {
+                parse_one_parameter(aTHX_ begin, delim - begin, flags, error_mode);
+                begin = delim + 1;
+                delim = strchr(begin, ',');
+            } while (delim);
+            if (begin < end) {
+                parse_one_parameter(aTHX_ begin, end - begin, flags, error_mode);
+            }
+        }
+        else if (len) {
+            parse_one_parameter(aTHX_ begin, len, flags, error_mode);
         }
     }
-    else {
-        parse_one_parameter(aTHX_ begin, len, &ret);
-    }
 
-    /* or in shifted to enable messages */
-    return ( ret | (ret << 1) );
+    *flags |= *flags << 1;
 }
 
 static IV
 PerlIOUnicode_pushed(pTHX_ PerlIO* f, const char* mode, SV* arg, PerlIO_funcs* tab) {
-    U32 flags = parse_parameters(aTHX_ arg);
+    U32 flags;
+    UnicodeErrorMode error_mode;
+    parse_parameters(aTHX_ arg, &flags, &error_mode);
+
     if (PerlIOBuf_pushed(aTHX_ f, mode, arg, tab) == 0) {
         PerlIOBase(f)->flags |= PERLIO_F_UTF8;
         PerlIOSelf(f, PerlIOUnicode)->flags = flags;
+        PerlIOSelf(f, PerlIOUnicode)->error_mode = error_mode;
         return 0;
     }
     return -1;
