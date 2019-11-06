@@ -4936,11 +4936,20 @@ PERLIO_FUNCS_DECL(PerlIO_crlf) = {
     PerlIOBuf_readdelim,
 };
 
+typedef enum {
+    uem_na,
+    uem_croak,  /* croak */
+    uem_failwarn, /* fail the stream and warn */
+} UnicodeErrorMode;
+
 static STRLEN
-validate(pTHX_ const U8 *buf, const U8 *end, const U32 flags, bool eof, PerlIO* handle) {
+validate(pTHX_ const U8 *buf, const U8 *end, const U32 flags,
+         UnicodeErrorMode error_mode, bool eof, PerlIO* handle, bool *discard) {
     const U8 *spos;
     U32 myflags = flags | (eof ? 0 : UTF8_ALLOW_SHORT);
     U32 isflags = flags & (UTF8_DISALLOW_ILLEGAL_INTERCHANGE | UTF8_DISALLOW_PERL_EXTENDED);
+
+    *discard = FALSE;
 
     (void)is_utf8_string_loc_flags(buf, end-buf, &spos, isflags);
 
@@ -4955,37 +4964,61 @@ validate(pTHX_ const U8 *buf, const U8 *end, const U32 flags, bool eof, PerlIO* 
         if ((eof || (errors & ~UTF8_GOT_SHORT) != 0)
             && msgs && av_tindex(msgs) >= 0) {
             SSize_t i;
-            SV *fullmsg = sv_2mortal(newSVpvs(""));
+            SV *fullmsg;
 
             /* fail the stream */
             PerlIOBase(handle)->flags |= PERLIO_F_ERROR;
-
-            for (i = 0; i <= av_tindex(msgs); ++i) {
-                SV **h = av_fetch(msgs, 0, FALSE);
-                SV **msg;
-                assert(h && SvROK(*h) && SvTYPE(SvRV(*h)) == SVt_PVHV);
-                msg = hv_fetch((HV*)SvRV(*h), "text", 4, FALSE);
-                if (SvCUR(fullmsg))
-                    sv_catpvs(fullmsg, "\n");
-                if (msg && *msg) {
-                    sv_catsv(fullmsg, *msg);
-                    if (eof)
-                        sv_catpvs(fullmsg, " at end of file");
+            switch (error_mode) {
+            case uem_croak:
+                fullmsg = sv_2mortal(newSVpvs(""));
+                for (i = 0; i <= av_tindex(msgs); ++i) {
+                    SV **h = av_fetch(msgs, i, FALSE);
+                    SV **msg;
+                    assert(h && SvROK(*h) && SvTYPE(SvRV(*h)) == SVt_PVHV);
+                    msg = hv_fetchs((HV*)SvRV(*h), "text", FALSE);
+                    if (SvCUR(fullmsg))
+                        sv_catpvs(fullmsg, "\n");
+                    if (msg && *msg) {
+                        sv_catsv(fullmsg, *msg);
+                        if (eof)
+                            sv_catpvs(fullmsg, " at end of file");
+                    }
                 }
+                SvREFCNT_dec((SV*)msgs);
+                croak_sv(fullmsg);
+                break;
+
+            case uem_failwarn:
+                /* make sure the AV is released if any of the warnings are fatal,
+                   or a __WARN__ handler croaks.
+                */
+                sv_2mortal((SV*)msgs);
+                for (i = 0; i <= av_tindex(msgs); ++i) {
+                    SV **h = av_fetch(msgs, i, FALSE);
+                    SV **msg;
+                    SV **catsv;
+                    HV *hv;
+                    assert(h && SvROK(*h) && SvTYPE(SvRV(*h)) == SVt_PVHV);
+                    hv = (HV*)SvRV(*h);
+                    msg = hv_fetchs(hv, "text", FALSE);
+                    catsv = hv_fetchs(hv, "warn_categories", FALSE);
+                    if (msg && catsv) {
+                        Perl_ck_warner(aTHX_ (U32)SvUV(*catsv), "%" SVf "%s",
+                                       SVfARG(*msg), eof ? " at end of file" : "");
+                    }
+                }
+
+                *discard = TRUE;
+                break;
+
+            default:
+                NOT_REACHED; /* NOTREACHED */
             }
-            SvREFCNT_dec((SV*)msgs);
-            croak_sv(fullmsg);
         }
     }
 
     return spos - buf;
 }
-
-typedef enum {
-    uem_na,
-    uem_croak,  /* croak */
-    uem_failwarn, /* fail the stream and warn */
-} UnicodeErrorMode;
 
 typedef struct {
     PerlIOBuf buf;
@@ -5095,6 +5128,7 @@ PerlIOUnicode_fill(pTHX_ PerlIO* f) {
     Size_t read_bytes = 0;
     STDCHAR *end;
     SSize_t fit;
+    bool discard;
 
     if (PerlIO_flush(f) != 0)
         return -1;
@@ -5163,9 +5197,11 @@ PerlIOUnicode_fill(pTHX_ PerlIO* f) {
         }
     }
     end = b->buf + read_bytes;
-    b->end = b->buf + validate(aTHX_ (const U8 *)b->buf, (const U8 *)end, u->flags, PerlIO_eof(n), f);
-    if (b->end < end) {
+    b->end = b->buf + validate(aTHX_ (const U8 *)b->buf, (const U8 *)end, u->flags,
+                               u->error_mode, PerlIO_eof(n), f, &discard);
+    if (b->end < end && !discard) {
         size_t len = b->buf + read_bytes - b->end;
+        assert(len <= UTF8_MAXBYTES);
         Copy(b->end, u->leftovers, len, char);
         u->leftover_length = len;
     }
@@ -5188,6 +5224,7 @@ PerlIOUnicode_readdelim(pTHX_ PerlIO *f, STDCHAR *vbuf, Size_t count, STDCHAR de
         Size_t read = 0, also = 0;
         STDCHAR *validated = NULL, *end = NULL;
         int seen = FALSE;
+        bool discard;
 
         if (PerlIOBase(f)->flags & PERLIO_F_ERROR)
             return -1;
@@ -5235,9 +5272,12 @@ PerlIOUnicode_readdelim(pTHX_ PerlIO *f, STDCHAR *vbuf, Size_t count, STDCHAR de
             also = PerlIO_readdelim(n, vbuf + read, count - read, delim);
         read += also;
         end = vbuf + read;
-        validated = vbuf + validate(aTHX_ (const U8 *)vbuf, (const U8 *) end, u->flags, PerlIO_eof(n), f);
-        if (validated < end) {
+        validated = vbuf + validate(aTHX_ (const U8 *)vbuf, (const U8 *) end,
+                                    u->flags, u->error_mode, PerlIO_eof(n), f,
+                                    &discard);
+        if (validated < end && !discard) {
             size_t len = end - validated;
+            assert(len <= UTF8_MAXBYTES);
             Copy(validated, u->leftovers, len, char);
             u->leftover_length = len;
             read -= len;

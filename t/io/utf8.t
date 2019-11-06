@@ -425,26 +425,47 @@ SKIP: {
     # test each allow-* option
     my @tests =
       (
-          [ "surrogates", "A\x{D800}\x{D801}\x{DFFE}\x{DFFF}B" ],
-          [ "noncharacters", "A\x{FDD0}\x{FDEF}\x{FFFE}\x{FFFF}B" ],
-          [ "super", "A\x{102000}\x{7FFFFFFF}B" ],
+          [ "surrogates", "A\x{D800}\x{D801}\x{DFFE}\x{DFFF}B",
+            qr/UTF-16 surrogate/ ],
+          [ "noncharacters", "A\x{FDD0}\x{FDEF}\x{FFFE}\x{FFFF}B",
+            qr/Unicode non-character/ ],
+          [ "super", "A\x{102000}\x{7FFFFFFF}B",
+            qr/Code point 0x[0-9a-fA-F]+ is not Unicode/ ],
          );
     for my $test (@tests) {
-        my ($key, $str) = @$test;
+        my ($key, $str, $message) = @$test;
         utf8::encode(my $bytes = $str);
+
+        $bytes .= "a" x 8192;
+
         # make sure it fails with the default strict
         open my $fh, "<:utf8", \$bytes
           or die;
         my $out;
         ok(!eval { read($fh, $out, length $str); 1 },
            "can't read from data with $key");
+        my $error = $@;
         close $fh;
+        like($error, $message, "check message matches for $key");
         open my $fh, "<:utf8(allow_$key)", \$bytes
           or die;
         undef $out;
         ok(eval { read($fh, $out, length $str) },
            "read from data with $key with allow_$key");
         is($out, $str, "make sure source matches result for $key");
+        close $fh;
+
+        # check with failwarn
+        use warnings;
+        open $fh, "<:utf8(error=failwarn)", \$bytes
+          or die;
+        my @warn;
+        local $SIG{__WARN__} = sub { push @warn, "@_" };
+        undef $out;
+        ok(eval { read($fh, $out, length $str); 1 },
+           "shouldn't croak with error=failwarn for $key");
+        ok($fh->error, "and stream is in error for $key");
+        like("@warn", $message, "check warning sane for $key");
     }
 }
 
