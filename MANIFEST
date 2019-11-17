@@ -6007,6 +6007,7 @@ t/re/overload.t		Test against string corruption in pattern matches on overloaded
 t/re/pat.t			See if esoteric patterns work
 t/re/pat_advanced.t		See if advanced esoteric patterns work
 t/re/pat_advanced_thr.t		See if advanced esoteric patterns work in another thread
+t/re/pat_miniperl_compatible.t		See if esoteric patterns work under miniperl
 t/re/pat_psycho.t		See if insane esoteric and slow patterns work
 t/re/pat_psycho_thr.t		See if insane esoteric and slow patterns work in another thread
 t/re/pat_re_eval.t		See if esoteric patterns using re 'eval' work
