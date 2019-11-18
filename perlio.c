@@ -4940,6 +4940,7 @@ typedef enum {
     uem_na,
     uem_croak,  /* croak */
     uem_failwarn, /* fail the stream and warn */
+    uem_failquiet, /* fail the stream quietly */
 } UnicodeErrorMode;
 
 static STRLEN
@@ -4961,15 +4962,17 @@ validate(pTHX_ const U8 *buf, const U8 *end, const U32 flags,
         (void)utf8n_to_uvchr_msgs(spos, end - spos,
                                   &retlen, myflags, &errors,
                                   &msgs);
-        if ((eof || (errors & ~UTF8_GOT_SHORT) != 0)
-            && msgs && av_tindex(msgs) >= 0) {
+        if (eof || (errors & ~UTF8_GOT_SHORT) != 0) {
             SSize_t i;
             SV *fullmsg;
 
             /* fail the stream */
             PerlIOBase(handle)->flags |= PERLIO_F_ERROR;
+            /* discard anything left in the buffer */
+            *discard = TRUE;
             switch (error_mode) {
             case uem_croak:
+                assert(msgs);
                 fullmsg = sv_2mortal(newSVpvs(""));
                 for (i = 0; i <= av_tindex(msgs); ++i) {
                     SV **h = av_fetch(msgs, i, FALSE);
@@ -4989,6 +4992,7 @@ validate(pTHX_ const U8 *buf, const U8 *end, const U32 flags,
                 break;
 
             case uem_failwarn:
+                assert(msgs);
                 /* make sure the AV is released if any of the warnings are fatal,
                    or a __WARN__ handler croaks.
                 */
@@ -5008,6 +5012,12 @@ validate(pTHX_ const U8 *buf, const U8 *end, const U32 flags,
                     }
                 }
 
+                *discard = TRUE;
+                break;
+
+            case uem_failquiet:
+                /* discard any messages */
+                SvREFCNT_dec(msgs);
                 *discard = TRUE;
                 break;
 
@@ -5052,6 +5062,7 @@ map[] = {
       uem_na
     },
     { STR_WITH_LEN("error=failwarn"), 0, 0, uem_failwarn },
+    { STR_WITH_LEN("error=failquiet"), 0, 0, uem_failquiet },
     { STR_WITH_LEN("error=croak"), 0, 0, uem_failwarn },
 };
 
@@ -5101,7 +5112,8 @@ parse_parameters(pTHX_ SV* param, U32 *flags, UnicodeErrorMode *error_mode) {
         }
     }
 
-    *flags |= *flags << 1;
+    if (*error_mode != uem_failquiet)
+        *flags |= *flags << 1;
 }
 
 static IV

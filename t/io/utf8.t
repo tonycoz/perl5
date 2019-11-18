@@ -456,16 +456,32 @@ SKIP: {
         close $fh;
 
         # check with failwarn
-        use warnings;
-        open $fh, "<:utf8(error=failwarn)", \$bytes
-          or die;
-        my @warn;
-        local $SIG{__WARN__} = sub { push @warn, "@_" };
-        undef $out;
-        ok(eval { read($fh, $out, length $str); 1 },
-           "shouldn't croak with error=failwarn for $key");
-        ok($fh->error, "and stream is in error for $key");
-        like("@warn", $message, "check warning sane for $key");
+        {
+            use warnings;
+            open $fh, "<:utf8(error=failwarn)", \$bytes
+              or die;
+            my @warn;
+            local $SIG{__WARN__} = sub { push @warn, "@_" };
+            undef $out;
+            ok(eval { read($fh, $out, length $str); 1 },
+               "shouldn't croak with error=failwarn for $key");
+            ok($fh->error, "and stream is in error for $key");
+            like("@warn", $message, "check warning sane for $key");
+        }
+
+        # check with failquiet
+        {
+            use warnings;
+            open $fh, "<:utf8(error=failquiet)", \$bytes
+              or die;
+            my @warn;
+            local $SIG{__WARN__} = sub { push @warn, "@_" };
+            undef $out;
+            ok(eval { read($fh, $out, length $str); 1 },
+               "shouldn't croak with error=failquiet for $key");
+            ok($fh->error, "and stream is in error for $key");
+            is(@warn, 0, "check no warning for $key");
+        }
     }
 }
 
