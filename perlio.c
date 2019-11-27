@@ -4941,7 +4941,12 @@ typedef enum {
     uem_croak,  /* croak */
     uem_failwarn, /* fail the stream and warn */
     uem_failquiet, /* fail the stream quietly */
+    uem_replacewarn, /* replace badness with replacement char and warn */
+    uem_replacequiet, /* replace badness with replacement char quietly */
 } UnicodeErrorMode;
+
+#define UTF8_DO_REPLACE(mode, flags) ((mode) >= uem_replacewarn)
+#define UTF8_DO_MESSAGE(mode) ((mode) != uem_failquiet)
 
 static STRLEN
 validate(pTHX_ const U8 *buf, const U8 *end, const U32 flags,
@@ -4949,6 +4954,8 @@ validate(pTHX_ const U8 *buf, const U8 *end, const U32 flags,
     const U8 *spos;
     U32 myflags = flags | (eof ? 0 : UTF8_ALLOW_SHORT);
     U32 isflags = flags & (UTF8_DISALLOW_ILLEGAL_INTERCHANGE | UTF8_DISALLOW_PERL_EXTENDED);
+
+    assert(!UTF8_DO_REPLACE(error_mode, flags));
 
     *discard = FALSE;
 
@@ -5032,8 +5039,9 @@ validate(pTHX_ const U8 *buf, const U8 *end, const U32 flags,
 
 typedef struct {
     PerlIOBuf buf;
-    STDCHAR leftovers[UTF8_MAXBYTES];
-    size_t leftover_length;
+    STDCHAR *leftovers;
+    STDCHAR *start;
+    STDCHAR *end;
     U32 flags;
     UnicodeErrorMode error_mode;
 } PerlIOUnicode;
@@ -5064,6 +5072,7 @@ map[] = {
     { STR_WITH_LEN("error=failwarn"), 0, 0, uem_failwarn },
     { STR_WITH_LEN("error=failquiet"), 0, 0, uem_failquiet },
     { STR_WITH_LEN("error=croak"), 0, 0, uem_failwarn },
+    { STR_WITH_LEN("error=replacewarn"), 0, 0, uem_replacewarn },
 };
 
 static void
@@ -5123,9 +5132,13 @@ PerlIOUnicode_pushed(pTHX_ PerlIO* f, const char* mode, SV* arg, PerlIO_funcs* t
     parse_parameters(aTHX_ arg, &flags, &error_mode);
 
     if (PerlIOBuf_pushed(aTHX_ f, mode, arg, tab) == 0) {
+        PerlIOUnicode * const u = PerlIOSelf(f, PerlIOUnicode);
         PerlIOBase(f)->flags |= PERLIO_F_UTF8;
-        PerlIOSelf(f, PerlIOUnicode)->flags = flags;
-        PerlIOSelf(f, PerlIOUnicode)->error_mode = error_mode;
+        u->flags = flags;
+        u->error_mode = error_mode;
+        Newx(u->leftovers, UTF8_MAXBYTES, STDCHAR);
+        u->start = u->end = u->leftovers;
+
         return 0;
     }
     return -1;
@@ -5154,11 +5167,12 @@ PerlIOUnicode_fill(pTHX_ PerlIO* f) {
 
     assert(b->buf);
 
-    if (u->leftover_length) {
-        Copy(u->leftovers, b->buf, u->leftover_length, STDCHAR);
-        b->end = b->buf + u->leftover_length;
-        read_bytes = u->leftover_length;
-        u->leftover_length = 0;
+    if (u->end != u->start) {
+        STRLEN len = u->end - u->start;
+        Copy(u->leftovers, b->buf, len, STDCHAR);
+        b->end = b->buf + len;
+        read_bytes = len;
+        u->end = u->start;
     }
     else {
         b->ptr = b->end = b->buf;
@@ -5214,8 +5228,8 @@ PerlIOUnicode_fill(pTHX_ PerlIO* f) {
     if (b->end < end && !discard) {
         size_t len = b->buf + read_bytes - b->end;
         assert(len <= UTF8_MAXBYTES);
-        Copy(b->end, u->leftovers, len, char);
-        u->leftover_length = len;
+        Copy(b->end, u->start, len, char);
+        u->end = u->start + len;
     }
     PerlIOBase(f)->flags |= PERLIO_F_RDBUF;
     
@@ -5252,10 +5266,11 @@ PerlIOUnicode_readdelim(pTHX_ PerlIO *f, STDCHAR *vbuf, Size_t count, STDCHAR de
 
             assert(b->buf);
 
-            if (u->leftover_length) {
-                Copy(u->leftovers, vbuf, u->leftover_length, STDCHAR);
-                read += u->leftover_length;
-                u->leftover_length = 0;
+            if (u->end != u->start) {
+                STRLEN len = u->end - u->start;
+                Copy(u->leftovers, vbuf, len, STDCHAR);
+                read += len;
+                u->end = u->start;
             }
 
             if (!PerlIOValid(n)) {
@@ -5291,7 +5306,7 @@ PerlIOUnicode_readdelim(pTHX_ PerlIO *f, STDCHAR *vbuf, Size_t count, STDCHAR de
             size_t len = end - validated;
             assert(len <= UTF8_MAXBYTES);
             Copy(validated, u->leftovers, len, char);
-            u->leftover_length = len;
+            u->end = u->start + len;
             read -= len;
         }
         PerlIOBase(f)->flags |= PERLIO_F_RDBUF;
@@ -5305,7 +5320,7 @@ PerlIOUnicode_seek(pTHX_ PerlIO *f, Off_t offset, int whence)
     IV code;
     if ((code = PerlIOBuf_seek(f, offset, whence)) == 0) {
         PerlIOUnicode *s = PerlIOSelf(f, PerlIOUnicode);
-        s->leftover_length = 0;
+        s->start = s->end = s->leftovers;
     }
     return code;
 }
