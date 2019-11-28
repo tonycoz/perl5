@@ -5239,10 +5239,11 @@ PerlIOUnicode_fill(pTHX_ PerlIO* f) {
 SSize_t
 PerlIOUnicode_readdelim(pTHX_ PerlIO *f, STDCHAR *vbuf, Size_t count, STDCHAR delim)
 {
-    if (0 && PerlIO_fast_gets(PerlIONext(f)))
+    PerlIOUnicode * const u = PerlIOSelf(f, PerlIOUnicode);
+    if (UTF8_DO_REPLACE(u->mode, u->flags)) {
         return PerlIOBuf_readdelim(aTHX_ f, vbuf, count, delim);
+    }
     else {
-        PerlIOUnicode * const u = PerlIOSelf(f, PerlIOUnicode);
         PerlIOBuf * const b = &u->buf;
         PerlIO *n = PerlIONext(f);
         SSize_t avail = PerlIO_get_cnt(f);
