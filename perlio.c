@@ -5136,8 +5136,14 @@ PerlIOUnicode_pushed(pTHX_ PerlIO* f, const char* mode, SV* arg, PerlIO_funcs* t
         PerlIOBase(f)->flags |= PERLIO_F_UTF8;
         u->flags = flags;
         u->error_mode = error_mode;
-        Newx(u->leftovers, UTF8_MAXBYTES, STDCHAR);
-        u->start = u->end = u->leftovers;
+        if (UTF8_DO_REPLACE(u->error_mode, u->flags) && !PerlIO_fast_gets()) {
+            Newx(u->leftovers, PERLIOBUF_DEFAULT_BUFSIZ. STDCHAR);
+            u->start = u->end = u->leftovers;
+        }
+        else {
+            Newx(u->leftovers, UTF8_MAXBYTES, STDCHAR);
+            u->start = u->end = u->leftovers;
+        }
 
         return 0;
     }
@@ -5167,6 +5173,12 @@ PerlIOUnicode_fill(pTHX_ PerlIO* f) {
 
     assert(b->buf);
 
+    if (DO_UTF8_REPLACE(u)) {
+        bool filled = FALSE;
+
+        while 
+    }
+    else {
     if (u->end != u->start) {
         STRLEN len = u->end - u->start;
         Copy(u->leftovers, b->buf, len, STDCHAR);
@@ -5231,6 +5243,7 @@ PerlIOUnicode_fill(pTHX_ PerlIO* f) {
         Copy(b->end, u->start, len, char);
         u->end = u->start + len;
     }
+    }
     PerlIOBase(f)->flags |= PERLIO_F_RDBUF;
     
     return 0;
@@ -5240,7 +5253,7 @@ SSize_t
 PerlIOUnicode_readdelim(pTHX_ PerlIO *f, STDCHAR *vbuf, Size_t count, STDCHAR delim)
 {
     PerlIOUnicode * const u = PerlIOSelf(f, PerlIOUnicode);
-    if (UTF8_DO_REPLACE(u->mode, u->flags)) {
+    if (UTF8_DO_REPLACE(u->error_mode, u->flags)) {
         return PerlIOBuf_readdelim(aTHX_ f, vbuf, count, delim);
     }
     else {
