@@ -5056,18 +5056,15 @@ validate_and_fix(pTHX_ const U8 **start, const U8 *send, U8 **out, U8 *oend,
                  PerlIOUnicode *u, bool eof) {
     UnicodeErrorMode error_mode = u->error_mode;
     U32 flags = u->flags;
-    U32 myflags = flags | (eof ? 0 : UTF8_ALLOW_SHORT);
-    U32 isflags = flags & (UTF8_DISALLOW_ILLEGAL_INTERCHANGE | UTF8_DISALLOW_PERL_EXTENDED);
     U32 sub_flags;
     SSize_t retval = 0;
     /* UTF8_CHECK_ONLY modifies retlen for utf8n_to_uvchr_msgs() */
     U32 utf8_flags = flags & ~(UTF8_CHECK_ONLY | UTF8_ALLOW_SHORT);
+    AV *msgs = NULL;
 
     /* Restrict flags to the ones is_utf8_string_*() handles */
     sub_flags = utf8_flags & (UTF8_DISALLOW_ILLEGAL_INTERCHANGE
                               |UTF8_DISALLOW_ABOVE_31_BIT);
-
-    *msgs = NULL;
 
     while (*start < send) {
         /* I thought originally I couldn't use this function, but
@@ -5102,7 +5099,7 @@ validate_and_fix(pTHX_ const U8 **start, const U8 *send, U8 **out, U8 *oend,
 
             (void)utf8n_to_uvchr_msgs(*start, send - *start,
                                       &retlen, flags | (eof ? 0 : UTF8_ALLOW_SHORT), &errors,
-                                      msgs);
+                                      &msgs);
 
             assert(*start + retlen <= send);
             /* we can get UTF8_GOT_SHORT even with *start + retlen < send */
@@ -5114,8 +5111,8 @@ validate_and_fix(pTHX_ const U8 **start, const U8 *send, U8 **out, U8 *oend,
             }
 
             if (error_mode != uem_replacewarn) {
-                SvREFCNT_dec(*msgs);
-                *msgs = NULL;
+                SvREFCNT_dec(msgs);
+                msgs = NULL;
             }
 
             if (out) {
@@ -5279,15 +5276,32 @@ PerlIOUnicode_fill(pTHX_ PerlIO* f) {
         const U8 *inend = (U8*)u->end;
 
         if (PerlIO_fast_gets(n)) {
-            assert(inp <= inend && inend - inp < UTF8_SMALL_BUFSIZE);
+            /*
+              We need to consider 3 sources of data here, in the order
+              it needs to be processed:
+
+              - data stored in the leftovers buffer (only filled if
+
+              - data currently stored in the parent buffer
+
+              - data we fill into the parent buffer
+
+              This is complicated by fill not preserving the existing
+              contents of the buffer, so if we do fill we need to copy
+              any partials into leftovers, then append from the
+              new fill to leftovers, process that, and consume from the
+              filled buffer.
+             */
+            while (!filled) {
+                assert(inp <= inend && inend - inp < UTF8_SMALL_BUFSIZE);
             avail = PerlIO_get_cnt(n);
             /* if we can fit all of the buffer in the leftovers then use it
                since the leftovers + the avail might be smaller than an
                encoded character.
             */
             if (avail > 0 && avail + (inend - inp ) < UTF8_SMALL_BUFSIZE) {
-                U8 *ptr = PerlIO_get_ptr(n);
-                Copy(ptr, u->end, STDERR, avail);
+                STDCHAR *ptr = PerlIO_get_ptr(n);
+                Copy(ptr, u->end, avail, STDCHAR);
                 u->end += avail;
                 inend = (U8*)u->end;
                 PerlIO_set_ptrcnt(n, ptr + avail, 0);
@@ -5307,27 +5321,27 @@ PerlIOUnicode_fill(pTHX_ PerlIO* f) {
                fill it out from the source and try to consume it
             */
             if (inp < inend) {
-                size_t copy_size = UTF8_SMALL_BUFSIZE - (inend - in);
+                SSize_t copy_size = UTF8_SMALL_BUFSIZE - (inend - inp);
                 SSize_t read_bytes;
                 Size_t consumed;
-                U8 *work_inp = inp;
-                STDCHAR ptr;
+                const U8 *work_inp = inp;
+                STDCHAR *ptr;
 
                 if (avail < copy_size)
                     copy_size = avail;
                 if (copy_size) {
                     /* don't consume this just yet */
                     ptr = PerlIO_get_ptr(n);
-                    Copy(ptr, u->end, STDCHAR, copy_size);
+                    Copy(ptr, u->end, copy_size, STDCHAR);
                 }
                 /* try to process some of it */
-                read_bytes = validate_and_fix(aTHX_, &inp, inend+copy_size, outp, outend,
+                read_bytes = validate_and_fix(aTHX_ &inp, inend+copy_size, &outp, outend,
                                               u, PerlIO_eof(n) && avail);
                 assert(read_bytes);
                 if (read_bytes > 0)
                     outp += read_bytes;
                 /* consumed including the extra we added */
-                consumed = inp - u->leftovers;
+                consumed = inp - (U8*)u->leftovers;
                 assert(consumed >= inend - inp);
                 /* consumed from the next buffer */
                 consumed -= inend - inp;
@@ -5338,8 +5352,8 @@ PerlIOUnicode_fill(pTHX_ PerlIO* f) {
                 }
                 u->start = u->end = u->leftovers;
             }
-            inp = PerlIO_get_ptr(n);
-            inend = avail;
+            inp = (const U8*)PerlIO_get_ptr(n);
+            inend = inp + avail;
         }
         else {
             croak("Not implemented (yet)");
