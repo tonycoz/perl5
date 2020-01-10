@@ -6112,6 +6112,11 @@ the feature:
     no warnings "experimental::declared_refs";
     use feature "declared_refs";
 
+=item The indirect feature is not enabled
+
+(F) You tried to use indirect method call syntax, e.g. C<new Foo>, but
+the C<indirect> feature is not enabled.
+
 =item The %s function is unimplemented
 
 (F) The function indicated isn't implemented on this architecture,

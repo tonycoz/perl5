@@ -23,7 +23,4 @@ system $foox "foo", "bar";
 my $y = new Foo;
 EXPECT
 OPTIONS fatal
-Bareword found where operator expected at - line 19, near "new Foo"
-	(Do you need to predeclare new?)
-syntax error at - line 19, near "new Foo"
-Execution of - aborted due to compilation errors.
+The indirect feature is not enabled at - line 19.
