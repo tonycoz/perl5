@@ -5051,6 +5051,36 @@ validate(pTHX_ const U8 *buf, const U8 *end,
 /* The "" ensures this breaks if the macro becomes a non-literal */
 #define REPLACEMENT_CHARACTER_UTF8_LEN (sizeof("" REPLACEMENT_CHARACTER_UTF8 "")-1)
 
+/*
+=item validate_and_fix_to_uni
+
+Process bytes from *start through send into the buffer for u.
+
+Only valid UTF-8 is output into the bufer, depending on the flags.
+
+If the error mode is C<uem_replace*>, anything not permitted is
+replaced with the unicode replacement character.
+
+If the error mode is C<uem_*warn>, or C<uem_croak>, anything not
+permitted results in C<*msgs> being filled with an AV containing error
+messages.
+
+If the error mode is C<uem_fail*>, anything not permitted results in C<u>
+being set to failed.
+
+Any invalidly encoded unicode (overlongs, lone continuation bytes,
+truncated encodings) that B<are> permitted are replaced with the
+unicode replacement character.
+
+Extended characters that are "valid" UTF-8 (but perhaps not valid
+Unicode) such as surrogates, non-characters, supers (beyond 0x10ffff),
+that are permitted are C<not> replaced.
+
+Returns the number of bytes consumed from the input.
+
+=cut
+*/
+
 static SSize_t
 validate_and_fix_to_uni(pTHX_ const U8 **start, const U8 *send, 
                         PerlIOUnicode *u, bool eof, AV **msgs) {
@@ -5127,7 +5157,7 @@ validate_and_fix_to_uni(pTHX_ const U8 **start, const U8 *send,
             outp += REPLACEMENT_CHARACTER_UTF8_LEN;
 
             *start += retlen;
-            retval += REPLACEMENT_CHARACTER_UTF8_LEN;
+            retval += retlen;
         }
     }
  finish:
