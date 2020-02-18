@@ -4159,6 +4159,7 @@ Gid_t getegid (void);
 #  define DEBUG_y_TEST_ UNLIKELY(PL_debug & DEBUG_y_FLAG)
 #  define DEBUG_Xv_TEST_ (DEBUG_X_TEST_ && DEBUG_v_TEST_)
 #  define DEBUG_Uv_TEST_ (DEBUG_U_TEST_ && DEBUG_v_TEST_)
+#  define DEBUG_Sv_TEST_ (DEBUG_S_TEST_ && DEBUG_v_TEST_)
 #  define DEBUG_Pv_TEST_ (DEBUG_P_TEST_ && DEBUG_v_TEST_)
 #  define DEBUG_Lv_TEST_ (DEBUG_L_TEST_ && DEBUG_v_TEST_)
 #  define DEBUG_yv_TEST_ (DEBUG_y_TEST_ && DEBUG_v_TEST_)
@@ -4195,6 +4196,7 @@ Gid_t getegid (void);
 #  define DEBUG_y_TEST DEBUG_y_TEST_
 #  define DEBUG_Xv_TEST DEBUG_Xv_TEST_
 #  define DEBUG_Uv_TEST DEBUG_Uv_TEST_
+#  define DEBUG_Sv_TEST DEBUG_Sv_TEST_
 #  define DEBUG_Pv_TEST DEBUG_Pv_TEST_
 #  define DEBUG_Lv_TEST DEBUG_Lv_TEST_
 #  define DEBUG_yv_TEST DEBUG_yv_TEST_
@@ -4249,6 +4251,7 @@ Gid_t getegid (void);
 #  define DEBUG_yv(a) DEBUG__(DEBUG_yv_TEST, a)
 
 #  define DEBUG_S(a) DEBUG__(DEBUG_S_TEST, a)
+#  define DEBUG_Sv(a) DEBUG__(DEBUG_Sv_TEST, a)
 #  define DEBUG_T(a) DEBUG__(DEBUG_T_TEST, a)
 #  define DEBUG_R(a) DEBUG__(DEBUG_R_TEST, a)
 #  define DEBUG_v(a) DEBUG__(DEBUG_v_TEST, a)
@@ -4293,6 +4296,7 @@ Gid_t getegid (void);
 #  define DEBUG_y_TEST (0)
 #  define DEBUG_Xv_TEST (0)
 #  define DEBUG_Uv_TEST (0)
+#  define DEBUG_Sv_TEST (0)
 #  define DEBUG_Pv_TEST (0)
 #  define DEBUG_Lv_TEST (0)
 #  define DEBUG_yv_TEST (0)
@@ -4329,6 +4333,7 @@ Gid_t getegid (void);
 #  define DEBUG_y(a)
 #  define DEBUG_Xv(a)
 #  define DEBUG_Uv(a)
+#  define DEBUG_Sv(a)
 #  define DEBUG_Pv(a)
 #  define DEBUG_Lv(a)
 #  define DEBUG_yv(a)

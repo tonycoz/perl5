@@ -254,6 +254,102 @@ S_new_slab(pTHX_ OPSLAB *head, size_t sz)
     return slab;
 }
 
+#define OpFreedFirstSize(slab) (&((slab)->opslab_freed))
+#define OpFreedNextSize(o) (&((o)->op_sibparent))
+
+#ifdef DEBUGGING
+
+STATIC void
+S_dump_free_ops(pTHX_ OPSLAB *slab) {
+    OP **psizes = OpFreedFirstSize(slab);
+
+    PerlIO_printf(Perl_debug_log, "slab %p free list\n", (void *)slab);
+    while (*psizes) {
+        OP *o = *psizes;
+        U16 sz = OpSLOT(*psizes)->opslot_size;
+        PerlIO_printf(Perl_debug_log, "  Size %u\n   ", sz);
+        while (o) {
+            PerlIO_printf(Perl_debug_log, " %p", (void *)o);
+            if (sz != OpSLOT(o)->opslot_size) {
+                PerlIO_printf(Perl_debug_log, "(size mismatch %u) ", OpSLOT(o)->opslot_size);
+            }
+            o = o->op_next;
+        }
+        PerlIO_printf(Perl_debug_log, "\n");
+        psizes = OpFreedNextSize(*psizes);
+    }
+}
+
+#endif
+
+#ifdef PERL_VALIDATE_FREE_OPS
+
+#define VALIDATE_FREE_OPS(head_slab, findme, should_find) \
+    S_validate_free_ops(aTHX_ head_slab, findme, should_find)
+
+static void
+S_validate_free_ops(pTHX_ OPSLAB *slab, OP *findme, bool should_find) {
+    OP *szop = *OpFreedFirstSize(slab);
+    U32 lastsize = 0;
+    bool found = false;
+    while (szop) {
+        U32 sz = OpSLOT(szop)->opslot_size;
+        OP *o = szop;
+        assert(sz > lastsize);
+        lastsize = sz;
+        while (o) {
+            if (o == findme)
+                found = TRUE;
+            assert(OpSLOT(o)->opslot_size == sz);
+            o = o->op_next;
+        }
+        szop = *OpFreedNextSize(szop);
+    }
+    assert(!found == !should_find);
+}
+
+#else
+
+#define VALIDATE_FREE_OPS(head_slab, findme, should_find);
+
+#endif
+
+PERL_STATIC_INLINE void
+S_link_free_op(pTHX_ OPSLAB *slab, OP *o) {
+    OP **psizes = OpFreedFirstSize(slab);
+    U32 sz = OpSLOT(o)->opslot_size;
+
+    /* work through the chain of sized chains */
+    DEBUG_Sv( PerlIO_printf(Perl_debug_log, "slab %p chain start %p\n", slab, *psizes) );
+    while (*psizes && OpSLOT(*psizes)->opslot_size < sz) {
+        psizes = OpFreedNextSize(*psizes);
+        DEBUG_Sv( PerlIO_printf(Perl_debug_log, "chain next %p\n", *psizes) );
+    }
+    if (!*psizes) {
+        /* end of the chain, no chains found with this size (or higher) */
+        DEBUG_S_warn((aTHX_ "Extending size chain with %p", o));
+        *psizes = o;
+        *OpFreedNextSize(*psizes) = NULL;
+        o->op_next = NULL;
+    }
+    else {
+        if (OpSLOT(*psizes)->opslot_size == sz) {
+            /* add to an existing chain */
+            DEBUG_S_warn((aTHX_ "Adding %p to existing chain", o));
+            o->op_next = (*psizes)->op_next;
+            (*psizes)->op_next = o;
+        }
+        else {
+            /* start a new chain in the middle of the list of sizes */
+            DEBUG_S_warn((aTHX_ "Starting new chain for %p", o));
+            o->op_next = NULL;
+            *OpFreedNextSize(o) = *psizes;
+            *psizes = o;
+        }
+    }
+    DEBUG_Sv( S_dump_free_ops(aTHX_ slab); );
+    VALIDATE_FREE_OPS(slab, o, TRUE);
+}
 
 /* Returns a sz-sized block of memory (suitable for holding an op) from
  * a free slot in the chain of op slabs attached to PL_compcv.
@@ -297,35 +393,46 @@ Perl_Slab_Alloc(pTHX_ size_t sz)
     }
     else ++(head_slab = (OPSLAB *)CvSTART(PL_compcv))->opslab_refcnt;
 
+    /* at this point sz is the requested op size in bytes */
     opsz = SIZE_TO_PSIZE(sz);
     sz = opsz + OPSLOT_HEADER_P;
+    /* and now sz is the size of the op + opslot header in pointer units */
 
     /* The slabs maintain a free list of OPs. In particular, constant folding
        will free up OPs, so it makes sense to re-use them where possible. A
        freed up slot is used in preference to a new allocation.  */
     if (head_slab->opslab_freed) {
-	OP **too = &head_slab->opslab_freed;
-	o = *too;
-        DEBUG_S_warn((aTHX_ "found free op at %p, slab %p, head slab %p",
-            (void*)o,
-            (I32**)OpSLOT(o) - OpSLOT(o)->opslot_offset,
-            (void*)head_slab));
+        OP **psizes = OpFreedFirstSize(head_slab);
 
-	while (o && OpSLOT(o)->opslot_size < sz) {
-	    DEBUG_S_warn((aTHX_ "Alas! too small"));
-	    o = *(too = &o->op_next);
-	    if (o) { DEBUG_S_warn((aTHX_ "found another free op at %p", (void*)o)); }
-	}
-	if (o) {
-            DEBUG_S_warn((aTHX_ "realloced  op at %p, slab %p, head slab %p",
+        DEBUG_Sv( S_dump_free_ops(aTHX_ head_slab); );
+        while (*psizes && OpSLOT(*psizes)->opslot_size < sz) {
+            psizes = OpFreedNextSize(*psizes);
+        }
+        if (*psizes) {
+            /* found an op the size we need or larger */
+            if ((*psizes)->op_next) {
+                /* pull it off the chain hanging off the size head */
+                o = (*psizes)->op_next;
+                DEBUG_S_warn((aTHX_ "found freed op %p off size chain\n", (void *)o));
+                (*psizes)->op_next = o->op_next;
+            }
+            else {
+                /* unhook this op from the size chain */
+                o = *psizes;
+                DEBUG_S_warn((aTHX_ "Unhooked freed op %p from size chain\n", (void *)o));
+                *psizes = *OpFreedNextSize(*psizes);
+            }
+            DEBUG_Sv( S_dump_free_ops(aTHX_ head_slab) );
+            assert(OpSLOT(o)->opslot_size >= opsz);
+            DEBUG_S_warn((aTHX_ "realloced  op at %p, slab %p, head slab %p refcnt %zu",
                 (void*)o,
                 (I32**)OpSLOT(o) - OpSLOT(o)->opslot_offset,
-                (void*)head_slab));
-	    *too = o->op_next;
+                          (void*)head_slab, head_slab->opslab_refcnt));
 	    Zero(o, opsz, I32 *);
 	    o->op_slabbed = 1;
+            VALIDATE_FREE_OPS(head_slab, o, FALSE);
 	    goto gotit;
-	}
+        }
     }
 
 #define INIT_OPSLOT(s) \
@@ -344,9 +451,9 @@ Perl_Slab_Alloc(pTHX_ size_t sz)
 	if (slab2->opslab_free_space >= SIZE_TO_PSIZE(sizeof(OP)) + OPSLOT_HEADER_P) {
 	    slot = &slab2->opslab_slots;
 	    INIT_OPSLOT(slab2->opslab_free_space);
+            DEBUG_S_warn((aTHX_ "synthesizing freed op at %p, slab %p out of free space refcnt %zu", o, slab2, head_slab->opslab_refcnt));
 	    o->op_type = OP_FREED;
-	    o->op_next = head_slab->opslab_freed;
-	    head_slab->opslab_freed = o;
+            S_link_free_op(aTHX_ head_slab, o);
 	}
 
 	/* Create a new slab.  Make this one twice as big. */
@@ -365,8 +472,8 @@ Perl_Slab_Alloc(pTHX_ size_t sz)
                                 + slab2->opslab_free_space - sz);
     assert(slot >= &slab2->opslab_slots);
     INIT_OPSLOT(sz);
-    DEBUG_S_warn((aTHX_ "allocating op at %p, slab %p, head slab %p",
-        (void*)o, (void*)slab2, (void*)head_slab));
+    DEBUG_S_warn((aTHX_ "allocating op at %p, slab %p, head slab %p refcnt %zu size %zu",
+                  (void*)o, (void*)slab2, (void*)head_slab, head_slab->opslab_refcnt, sz));
 
   gotit:
     /* moresib == 0, op_sibling == 0 implies a solitary unattached op */
@@ -436,7 +543,6 @@ S_pp_freed(pTHX)
 }
 #endif
 
-
 /* Return the block of memory used by an op to the free list of
  * the OP slab associated with that op.
  */
@@ -452,7 +558,7 @@ Perl_Slab_Free(pTHX_ void *op)
 #ifdef DEBUGGING
     o->op_ppaddr = S_pp_freed;
 #endif
-
+    DEBUG_Sv( PerlIO_printf( Perl_debug_log, "about to free %p\n", o); );
     if (!o->op_slabbed) {
         if (!o->op_static)
 	    PerlMemShared_free(op);
@@ -463,12 +569,11 @@ Perl_Slab_Free(pTHX_ void *op)
     /* If this op is already freed, our refcount will get screwy. */
     assert(o->op_type != OP_FREED);
     o->op_type = OP_FREED;
-    o->op_next = slab->opslab_freed;
-    slab->opslab_freed = o;
-    DEBUG_S_warn((aTHX_ "freeing    op at %p, slab %p, head slab %p",
+    S_link_free_op(aTHX_ slab, o);
+    DEBUG_S_warn((aTHX_ "freeing    op at %p, slab %p, head slab %p refcnt %zu",
         (void*)o,
         (I32**)OpSLOT(o) - OpSLOT(o)->opslot_offset,
-        (void*)slab));
+                  (void*)slab, slab->opslab_refcnt));
     OpslabREFCNT_dec_padok(slab);
 }
 
@@ -559,6 +664,8 @@ Perl_opslab_force_free(pTHX_ OPSLAB *slab)
     /* > 1 because the CV still holds a reference count. */
     if (slab->opslab_refcnt > 1) { /* still referenced by the savestack */
 #ifdef DEBUGGING
+        if (savestack_count != slab->opslab_refcnt-1)
+            DEBUG_Sv( PerlIO_printf(Perl_debug_log, "slab %p assert\n", slab); );
 	assert(savestack_count == slab->opslab_refcnt-1);
 #endif
 	/* Remove the CV’s reference count. */

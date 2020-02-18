@@ -718,8 +718,8 @@ struct opslab {
 
 # define OPSLOT_HEADER		STRUCT_OFFSET(OPSLOT, opslot_op)
 # define OPSLOT_HEADER_P	(OPSLOT_HEADER/sizeof(I32 *))
-# define OpSLOT(o)		(assert_(o->op_slabbed) \
-				 (OPSLOT *)(((char *)o)-OPSLOT_HEADER))
+# define OpSLOT(o)		(assert_((o)->op_slabbed)               \
+                                 (OPSLOT *)(((char *)(o))-OPSLOT_HEADER))
 
 /* the first (head) opslab of the chain in which this op is allocated */
 # define OpSLAB(o) \
