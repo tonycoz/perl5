@@ -11,7 +11,7 @@ BEGIN {
     }
 }
 
-use Test::More tests => 5;
+use Test::More tests => 7;
 use IO::File;
 use IO::Seekable;
 
@@ -49,4 +49,23 @@ SKIP:
        or skip "Cannot open t/io_xs.t read-only: $!", 1;
     ok($fh->sync, "sync to a read only handle")
 	or diag "sync(): ", $!;
+}
+
+SKIP:
+{
+    # gh #17455
+    # the IO::Handle::blocking() implementation on Win32 was always using
+    # a fd of -1.
+    # A typical caller would be creating the socket using IO::Socket
+    # which blesses the result into that class and that provides its own
+    # blocking implementation and doesn't have this problem.
+    #
+    # The issue here was Win32 specific, but nothing else appears to test
+    # this implementation.
+    use Socket;
+    ok(socket(my $sock, PF_INET, SOCK_STREAM, getprotobyname('tcp')),
+       "create a socket to make non-blocking")
+       or skip "couldn't create the socket: $!", 1;
+    ok(defined IO::Handle::blocking($sock, 0),
+       "successfully make socket non-blocking");
 }
