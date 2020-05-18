@@ -43,15 +43,19 @@ jobs:
       #  # popd
       #  # call "%VSPATH%\VC\Auxiliary\Build\vcvarsall.bat" x64
       #  #run: |
+      - name: Set up build environment for gmake
+        run: |
+          choco install strawberryperl
+          echo "##[add-path]C:\strawberry\c\bin"
       - name: Build
         shell: cmd
         run: |
             call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
             cd win32
-            nmake CCTYPE=MSVC142
+            gmake -j3 CCTYPE=MSVC142 test-prep
       - name: Run Tests
         shell: cmd
         run: |
             call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
             cd win32
-            nmake CCTYPE=MSVC142 test
+            gmake -j3 CCTYPE=MSVC142 test
