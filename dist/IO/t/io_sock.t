@@ -163,6 +163,10 @@ if($pid = fork()) {
     } else {
        print "not ok 11\n";
     }
+    if ($^O eq "MSWin32") {
+        # wait for eof from parent
+        #$sock->read(my $tmp, 10);
+    }
     $sock = undef;
     sleep(1);
     exit;
