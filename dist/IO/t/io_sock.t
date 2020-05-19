@@ -329,17 +329,17 @@ if( $server_pid) {
          || IO::Socket::INET->new("127.0.0.1:$serverport");
 
     if ($sock) {
-	$sock->print("done\n");
+	$sock->print("quit\n");
 	$sock->close;
+        my $wait = waitpid $server_pid, 0;
 
-	print "not " if( 1 != kill 0, $server_pid);
+	print "not " if $wait != $server_pid || $? != 0;
     } else {
 	print "not ";
     }
     print "ok 24\n";
 
 } elsif (defined($server_pid)) {
-   
     ### Child
     #
     SERVER_LOOP: while (1) {
