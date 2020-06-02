@@ -1126,6 +1126,7 @@ my %opflags = (
     'I' =>  32,		# has corresponding int op
     'd' =>  64,		# danger, make temp copy in list assignment
     'u' => 128,		# defaults to $_
+    'F' => 256,         # has corresponding float op
 );
 
 my %OP_IS_SOCKET;	# /Fs/
@@ -1135,8 +1136,8 @@ my %OP_IS_NUMCOMPARE;	# /S</
 my %OP_IS_DIRHOP;	# /Fd/
 my %OP_IS_INFIX_BIT;	# /S\|/
 
-my $OCSHIFT = 8;
-my $OASHIFT = 12;
+my $OCSHIFT = 9;
+my $OASHIFT = 13;
 
 for my $op (@ops) {
     my $argsum = 0;
