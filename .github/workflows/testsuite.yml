@@ -442,6 +442,7 @@ jobs:
 
       - name: Set up Cygwin
         shell: cmd
+        continue-on-error: true
         run: |
           choco install cygwin --params="/InstallDir:%GITHUB_WORKSPACE%\cygwin"
           choco install cyg-get
