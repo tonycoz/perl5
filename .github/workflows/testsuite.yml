@@ -29,6 +29,8 @@ jobs:
     name: "cygwin"
     runs-on: windows-latest
     timeout-minutes: 120
+    env:
+      CHERE_INVOKING: 1
 
     steps:
       # we use Cygwin git, so no need to configure git here.
@@ -36,30 +38,25 @@ jobs:
       - name: Set up Cygwin
         uses: cygwin/cygwin-install-action@master
         with:
-            packages: cygwin-devel gcc-core gcc gcc-g++ make cygwin64-w32api-headers
-      - name: Check out using Cygwin git, to ensure correct file permissions
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: cmd
-        run: |
-          path c:\cygwin\bin;c:\cygwin\usr\bin
-          sh -c "git config --global core.autocrlf false"
-          sh -c "mkdir -p ~; cd ~; git clone -qn \"https://$GITHUB_ACTOR:$GITHUB_TOKEN@github.com/$GITHUB_REPOSITORY\" work ; cd work ; if [ \"$GITHUB_EVENT_NAME\" = pull_request ] ; then git fetch origin \"$GITHUB_REF\" && git checkout FETCH_HEAD ; else  git checkout \"$GITHUB_SHA\" ; fi"
+          packages: cygwin-devel gcc-core gcc gcc-g++ make cygwin64-w32api-headers
+      - run: git config --global core.autocrlf false
+      - name Checkout
+        uses: action/checkout@v2
       - name: Configure
         shell: cmd
         run: |
           path c:\cygwin\bin;c:\cygwin\usr\bin
-          sh -c "cd ~/work; ./Configure -des -Dusedevel -Doptimize=-g -DDEBUGGING"
+          sh -c "./Configure -des -Dusedevel -Doptimize=-g -DDEBUGGING"
       - name: Build
         shell: cmd
         run: |
           path c:\cygwin\bin;c:\cygwin\usr\bin
-          sh -c "cd ~/work; make -j2 test_prep"
+          sh -c "make -j2 test_prep"
       - name: Show Config
         shell: cmd
         run: |
           path c:\cygwin\bin;c:\cygwin\usr\bin
-          sh -c "cd ~/work; ./perl -Ilib -V; ./perl -Ilib -e 'use Config; print Config::config_sh'"
+          sh -c "./perl -Ilib -V; ./perl -Ilib -e 'use Config; print Config::config_sh'"
       - name: Run Tests
         shell: cmd
         # Descend far enough down the cygwin yak warren, and one discovers that
@@ -75,4 +72,4 @@ jobs:
         # complete all CI runs.
         run: |
           path c:\cygwin\bin;c:\cygwin\usr\bin
-          sh -c "cd ~/work; PATH=`pwd`:.:$PATH ./perl.exe t/TEST"
+          sh -c "PATH=`pwd`:.:$PATH ./perl.exe t/TEST"
