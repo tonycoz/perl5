@@ -46,13 +46,15 @@ jobs:
         run:
           echo "$GITHUB_ENV"
       - name: Dump GitHub workspace
+        env:
+          GITHUB_WORKSPACE: ${{ github.workspace }}
         run:
           echo "$GITHUB_WORKSPACE"
       - name: Set up Cygwin
         uses: tonycoz/cygwin-install-action@installpath
         with:
           packages: cygwin-devel gcc-core gcc gcc-g++ make cygwin64-w32api-headers git
-          installpath: ${{ github.env.workspace }}\cygwin
+          installpath: ${{ github.workspace }}\cygwin
       - run: git config --global core.autocrlf false
       - name: disk layout
         run: |
