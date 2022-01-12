@@ -36,18 +36,21 @@ jobs:
       # we use Cygwin git, so no need to configure git here.
 
       - name: Set up Cygwin
-        uses: cygwin/cygwin-install-action@master
+        uses: tonycoz/cygwin-install-action@installpath
         with:
           packages: cygwin-devel gcc-core gcc gcc-g++ make cygwin64-w32api-headers git
+          installpath: ${{ env.GITHUB_WORKSPACE }}/cygwin
       - run: git config --global core.autocrlf false
       - name: disk layout
         run: |
           Get-Volume
         shell: powershell
       - name: Checkout
-        env:
-          PATH: c:\cygwin\bin;c:\cygwin\usr\bin;${{ env.PATH }}
+        #env:
+        #  PATH: c:\cygwin\bin;c:\cygwin\usr\bin;${{ env.PATH }}
         uses: actions/checkout@v2
+        with:
+          path: src
       - name: Configure
         shell: cmd
         run: |
