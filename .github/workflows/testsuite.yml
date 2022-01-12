@@ -65,7 +65,7 @@ jobs:
         #  PATH: c:\cygwin\bin;c:\cygwin\usr\bin;${{ env.PATH }}
         uses: actions/checkout@v2
         with:
-          path: src
+          path: cygwin\home\%USERNAME%\src
       - name: Configure
         shell: cmd
         run: |
