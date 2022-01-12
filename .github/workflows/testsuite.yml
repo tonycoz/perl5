@@ -55,7 +55,6 @@ jobs:
         with:
           packages: cygwin-devel gcc-core gcc gcc-g++ make cygwin64-w32api-headers git
           installpath: ${{ github.workspace }}\cygwin
-      - run: git config --global core.autocrlf false
       - name: disk layout
         run: |
           Get-Volume
@@ -65,22 +64,19 @@ jobs:
         #  PATH: c:\cygwin\bin;c:\cygwin\usr\bin;${{ env.PATH }}
         uses: actions/checkout@v2
         with:
-          path: cygwin\home\%USERNAME%\src
+          path: cygwin\home\src
       - name: Configure
         shell: cmd
         run: |
-          path c:\cygwin\bin;c:\cygwin\usr\bin
-          sh -c "./Configure -des -Dusedevel -Doptimize=-g -DDEBUGGING"
+          sh -c "cd cygwin/home/src; ./Configure -des -Dusedevel -Doptimize=-g -DDEBUGGING"
       - name: Build
         shell: cmd
         run: |
-          path c:\cygwin\bin;c:\cygwin\usr\bin
-          sh -c "make -j2 test_prep"
+          sh -c "make -C cygwin/home/src -j2 test_prep"
       - name: Show Config
         shell: cmd
         run: |
-          path c:\cygwin\bin;c:\cygwin\usr\bin
-          sh -c "./perl -Ilib -V; ./perl -Ilib -e 'use Config; print Config::config_sh'"
+          sh -c "cd cygwin/home/src; ./perl -Ilib -V; ./perl -Ilib -e 'use Config; print Config::config_sh'"
       - name: Run Tests
         shell: cmd
         # Descend far enough down the cygwin yak warren, and one discovers that
@@ -95,5 +91,4 @@ jobs:
         # about 40 seconds, which is nearly 1% of the total wallclock time for
         # complete all CI runs.
         run: |
-          path c:\cygwin\bin;c:\cygwin\usr\bin
-          sh -c "PATH=`pwd`:.:$PATH TEST_JOBS=2 ./perl.exe t/harness"
+          sh -c "cd cygwin/home/src; PATH=`pwd`:.:$PATH TEST_JOBS=2 ./perl.exe t/harness"
