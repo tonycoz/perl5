@@ -38,7 +38,10 @@ jobs:
       - name: Dump GitHub context
         env:
           GITHUB_CONTEXT: ${{ toJson(github) }}
-        run: echo "$GITHUB_CONTEXT"
+          GITHUB_ENV: ${{ toJSON{env) }}
+        run:
+          echo "$GITHUB_CONTEXT"
+          echo "$GITHUB_ENV"
       - name: Set up Cygwin
         uses: tonycoz/cygwin-install-action@installpath
         with:
