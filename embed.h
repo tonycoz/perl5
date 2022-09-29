@@ -1646,6 +1646,11 @@
 #define tokereport(a,b)		S_tokereport(aTHX_ a,b)
 #    endif
 #  endif
+#  if defined(DEBUGGING) || defined(USE_POSIX_2008_LOCALE)
+#    if defined(PERL_IN_LOCALE_C)
+#define get_displayable_string(a,b,c)	S_get_displayable_string(aTHX_ a,b,c)
+#    endif
+#  endif
 #  if defined(DEBUG_LEAKING_SCALARS_FORK_DUMP)
 #define dump_sv_child(a)	Perl_dump_sv_child(aTHX_ a)
 #  endif
@@ -1751,7 +1756,6 @@
 #define unshare_hek_or_pvn(a,b,c,d)	S_unshare_hek_or_pvn(aTHX_ a,b,c,d)
 #  endif
 #  if defined(PERL_IN_LOCALE_C)
-#define get_displayable_string(a,b,c)	S_get_displayable_string(aTHX_ a,b,c)
 #    if defined(USE_LOCALE)
 #define get_category_index	S_get_category_index
 #define get_locale_string_utf8ness_i(a,b,c,d)	S_get_locale_string_utf8ness_i(aTHX_ a,b,c,d)
