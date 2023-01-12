@@ -30,6 +30,7 @@ WriteMakefile(
     PREREQ_PM    => {
         'Test::More' => 0,
         'File::Temp' => '0.15',
+        'Errno' => '1.37',
     },
     (
         $PERL_CORE
