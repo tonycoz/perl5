@@ -24,6 +24,7 @@ no_index:
     - dist/Dumpvalue
     - dist/encoding-warnings
     - dist/Env
+    - dist/Errno
     - dist/Exporter
     - dist/ExtUtils-CBuilder
     - dist/ExtUtils-ParseXS
@@ -57,7 +58,6 @@ no_index:
     - ext/B/t
     - ext/Devel-Peek/t
     - ext/DynaLoader/t
-    - ext/Errno/t
     - ext/Fcntl/t
     - ext/File-DosGlob/t
     - ext/File-Find/t

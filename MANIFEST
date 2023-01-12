@@ -3663,6 +3663,10 @@ dist/encoding-warnings/t/4-lexical.t	tests for encoding::warnings
 dist/Env/lib/Env.pm		Map environment into ordinary variables
 dist/Env/t/array.t		See if Env works for arrays
 dist/Env/t/env.t		See if Env works
+dist/Errno/ChangeLog	Errno changes
+dist/Errno/Errno_pm.PL	Errno perl module create script
+dist/Errno/Makefile.PL	Errno extension makefile writer
+dist/Errno/t/Errno.t	See if Errno works
 dist/Exporter/lib/Exporter.pm		Exporter base class
 dist/Exporter/lib/Exporter/Heavy.pm	Complicated routines for Exporter
 dist/Exporter/t/Exporter.t		See if Exporter works
@@ -4299,10 +4303,6 @@ ext/DynaLoader/hints/openbsd.pl	Hint for DynaLoader for named architecture
 ext/DynaLoader/Makefile.PL	Dynamic Loader makefile writer
 ext/DynaLoader/README		Dynamic Loader notes and intro
 ext/DynaLoader/t/DynaLoader.t	See if DynaLoader works
-ext/Errno/ChangeLog	Errno changes
-ext/Errno/Errno_pm.PL	Errno perl module create script
-ext/Errno/Makefile.PL	Errno extension makefile writer
-ext/Errno/t/Errno.t	See if Errno works
 ext/ExtUtils-Miniperl/lib/ExtUtils/Miniperl.pm	Writes {mini,}perlmain.c
 ext/Fcntl/Fcntl.pm	Fcntl extension Perl module
 ext/Fcntl/Fcntl.xs	Fcntl extension external subroutines

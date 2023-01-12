@@ -19,10 +19,13 @@ if ($got ne $arch) {
     close $out;
 }
 
+my $installdirs = $] < 5.011 ? "perl" : "site";
+
 WriteMakefile(
     NAME	 => 'Errno',
     VERSION_FROM => 'Errno_pm.PL',
     PL_FILES	 => {'Errno_pm.PL'=>'Errno.pm'},
+    INSTALLDIRS  => $installdirs,
     PM		 => {'Errno.pm' => '$(INST_LIBDIR)/Errno.pm'},
     'clean'	 => {FILES => 'Errno.pm arch.txt'},
     'dist'	 => {

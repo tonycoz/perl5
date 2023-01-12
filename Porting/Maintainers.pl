@@ -412,6 +412,11 @@ use File::Glob qw(:case);
         'EXCLUDED'     => [qr{^t/release-.*\.t}],
     },
 
+    'Errno' => {
+        'DISTRIBUTION' => 'RJBS/Errno-1.37.tar.gz',
+        'FILES'        => q[dist/Errno],
+    },
+
     'experimental' => {
         'DISTRIBUTION' => 'LEONT/experimental-0.030.tar.gz',
         'FILES'        => q[cpan/experimental],
@@ -1351,7 +1356,6 @@ use File::Glob qw(:case);
                 ext/B/
                 ext/Devel-Peek/
                 ext/DynaLoader/
-                ext/Errno/
                 ext/ExtUtils-Miniperl/
                 ext/Fcntl/
                 ext/File-DosGlob/
