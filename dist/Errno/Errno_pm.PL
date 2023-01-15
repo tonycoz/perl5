@@ -227,8 +227,16 @@ sub write_errno_pm {
     {	# BeOS (support now removed) did not enter this block
     # invoke CPP and read the output
 
+        # for an old perl (since we're headed to CPAN), it may
+        # have been built with an older gcc than is currently installed
+        my $gccversion = $Config{gccversion};
+        if ($gccversion) {
+            if ((my $vout = `$Config{cppstdin} -v 2>&1`) =~ /gcc version ([\d.]+)/) {
+                $gccversion = $1;
+            }
+        }
 	my $inhibit_linemarkers = '';
-	if ($Config{gccversion} =~ /\A(\d+)\./ and $1 >= 5) {
+        if ($gccversion =~ /\A(\d+)\./ and $1 >= 5) {
 	    # GCC 5.0 interleaves expanded macros with line numbers breaking
 	    # each line into multiple lines. RT#123784
 	    $inhibit_linemarkers = ' -P';
