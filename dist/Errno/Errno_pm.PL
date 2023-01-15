@@ -420,6 +420,12 @@ sub _tie_it {
     tie %{$_[0]}, __PACKAGE__;
 }
 
+if ($] < 5.026) {
+    eval '_tie_it(\%!);';
+}
+
+1;
+
 __END__
 
 =head1 NAME
