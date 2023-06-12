@@ -13,7 +13,7 @@ use Errno qw(EACCES);
 
 $| = 1;
 
-use Test::More tests => 125;
+use Test::More tests => 131;
 
 my $fh;
 my $var = "aaa\n";
@@ -525,4 +525,28 @@ SKIP:
     ok(seek($fh, 2**32, SEEK_SET), "seek to a large position");
     select((select($fh), ++$|)[0]);
     ok(!(print $fh "x"), "write to a large offset");
+}
+
+# [GH Issue #19472] Opening a reference to an undef scalar
+SKIP: {
+    use strict;
+    use warnings;
+    my $var;
+    open my $fh, "+>", \$var;
+    my $warn_count= 0;
+    my $warn_text= "";
+    local $SIG{__WARN__}= sub { $warn_count++; $warn_text .= shift; };
+    my @x= <$fh>;
+    seek($fh, 0, SEEK_END);
+    is $warn_count, 0, '[GH Issue #19472]: read after open $fh, ">", ' .
+                       '\$undef_var produces 0 warnings';
+    is $warn_text, "", '[GH Issue #19472]: read after open $fh, ">", ' .
+                       '\$undef_var produces no warning text';
+    is 0+@x, 0,        '[GH Issue #19472]: <$fh> after open $fh, ">", ' .
+                       '\$undef_var returns nothing';
+    is $var, undef,    "variable is still undef";
+
+    print $fh "some text\n";
+    is $warn_count, 0, "should still not have warned";
+    isnt $var, undef, "not undef after write";
 }
