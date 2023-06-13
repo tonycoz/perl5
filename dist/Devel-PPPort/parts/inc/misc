@@ -36,6 +36,7 @@ WIDEST_UTYPE
 XSRETURN
 NOT_REACHED
 ASSUME
+EXTEND_HWM_SET
 
 =implementation
 
@@ -1127,6 +1128,20 @@ __UNDEFINED__ MUTABLE_GV(p)   ((GV *)MUTABLE_PTR(p))
 __UNDEFINED__ MUTABLE_HV(p)   ((HV *)MUTABLE_PTR(p))
 __UNDEFINED__ MUTABLE_IO(p)   ((IO *)MUTABLE_PTR(p))
 __UNDEFINED__ MUTABLE_SV(p)   ((SV *)MUTABLE_PTR(p))
+
+/* we only need to re-define this if both it exists and
+   this is a debugging build */
+#if { VERSION < 5.38 }
+#  if defined(EXTEND_HWM_SET) && defined(DEBUGGING) && !defined(DEBUGGING_RE_ONLY)
+#    undef EXTEND_HWM_SET
+#    define EXTEND_HWM_SET(p, n)                                     \
+        STMT_START {                                               \
+            SSize_t extend_hwm_set_ix = (p) - PL_stack_base + (n); \
+            if (extend_hwm_set_ix > PL_curstackinfo->si_stack_hwm) \
+                PL_curstackinfo->si_stack_hwm = extend_hwm_set_ix; \
+        } STMT_END
+#  endif
+#endif
 
 =xsmisc
 
