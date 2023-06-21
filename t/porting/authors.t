@@ -42,5 +42,5 @@ elsif( $ENV{GITHUB_ACTIONS} && length $ENV{GITHUB_BASE_REF} ) {
         if $branch_head;
 }
 
-exec("$^X Porting/updateAUTHORS.pl --validate $revision_range");
+exec("$^X Porting/updateAUTHORS.pl --validate $revision_range --mailmap_file $source_dir/.mailmap");
 # EOF

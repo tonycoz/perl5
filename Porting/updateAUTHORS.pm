@@ -211,7 +211,7 @@ sub read_commit_log {
     push @args, "'$self->{commit_range}'" if $self->{commit_range};
 
     my $last_commit_info;
-    my $cmd= qq(git -c diff.algorithm=myers log @args);
+    my $cmd= qq(git -c diff.algorithm=myers -c 'mailmap.file=$self->{mailmap_file}' log @args);
     $cmd =~ s/'/"/g if $^O =~ /Win/;
     open my $fh, "-|", $cmd
         or die "Failed to open git log pipe: $!";
