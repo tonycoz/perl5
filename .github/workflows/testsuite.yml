@@ -528,7 +528,7 @@ jobs:
           if (!(Test-Path "C:\strawberry\perl\bin")) {
             choco install strawberryperl
           }
-          PATH
+          $env:path -split ";"
           gcc --version
           echo @"
           C:\mingw64
