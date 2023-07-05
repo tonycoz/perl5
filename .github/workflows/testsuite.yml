@@ -535,10 +535,12 @@ jobs:
           C:\strawberry\c\bin
           "@ |
             Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Where is gcc
+        run: |
+          perl -le "print qq(Found gcc $_) for grep -e qq($_/gcc.exe), split ';', $ENV{PATH}"
       - name: Host perl -V
         run: |
           perl -V
-          perl -le "print "Found gcc $_" for grep -e qq($_/gcc.exe), split ';', $ENV{PATH}"
       - name: gcc --version
         run: gcc --version
       - name: Build
