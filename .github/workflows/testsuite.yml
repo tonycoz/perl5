@@ -522,7 +522,7 @@ jobs:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@v3
       - name: Install mingw-64
-        uses: setup-mingw@v2
+        uses: egor-tensin/setup-mingw@v2
       - name: Where is gcc
         shell: cmd
         run: |
