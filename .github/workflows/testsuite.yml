@@ -521,15 +521,8 @@ jobs:
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@v3
-      - name: Set up Perl build environment
-        run: |
-          # only used for gmake for now, hopefully that will change
-          # skip installing perl if it is already installed.
-          if (!(Test-Path "C:\strawberry\perl\bin")) {
-            choco install strawberryperl
-          }
-          $env:path -split ";"
-          gcc --version
+      - name: Install mingw-64
+        uses: setup-mingw@v2
       - name: Where is gcc
         shell: cmd
         run: |
