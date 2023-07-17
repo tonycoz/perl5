@@ -133,6 +133,7 @@ sub slurp_or_die {
     my $filename = shift;
     my $fh = open_or_die($filename);
     binmode $fh;
+    binmode $fh, ":crlf" if $^O eq "MSWin32";
     local $/;
     my $contents = <$fh>;
     die "Can't read $filename: $!" unless defined $contents and close $fh;

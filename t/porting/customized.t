@@ -103,6 +103,7 @@ foreach my $module ( sort keys %Modules ) {
     {
       open my $fh, '<', $file or die "Can't open $file";
       binmode $fh;
+      binmode $fh, ":crlf" if $^O eq "MSWin32";
       $digest->addfile( $fh );
       close $fh;
     }
