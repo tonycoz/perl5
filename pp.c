@@ -6877,6 +6877,8 @@ PP_wrapped(pp_split,
                 else
                     trailing_empty = 0;
             } else {
+                if (m < s)
+                    m = s;
                 dstr = newSVpvn_flags(s, m-s, flags);
                 XPUSHs(dstr);
             }

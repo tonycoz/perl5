@@ -7,7 +7,7 @@ BEGIN {
     require './charset_tools.pl';
 }
 
-plan tests => 197;
+plan tests => 198;
 
 $FS = ':';
 
@@ -725,3 +725,4 @@ SKIP: {
 		}, "special-case pattern for $prog");
 	}
 }
+fresh_perl_is('split /00|0\G/, "000"', '', {}, "split with \\G doesn't panic");
