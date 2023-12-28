@@ -282,7 +282,6 @@ PP(pp_backtick)
 {
     dTARGET;
     PerlIO *fp;
-    const char * const tmps = SvPV_nolen(*PL_stack_sp);
     const U8 gimme = GIMME_V;
     const char *mode = "r";
 
@@ -291,8 +290,19 @@ PP(pp_backtick)
         mode = "rb";
     else if (PL_op->op_private & OPpOPEN_IN_CRLF)
         mode = "rt";
-    fp = PerlProc_popen(tmps, mode);
-    rpp_popfree_1();
+    if (OP_TYPE_IS_NN(PL_op, OP_BACKTICK)) {
+        const char * const tmps = SvPV_nolen(*PL_stack_sp);
+        fp = PerlProc_popen(tmps, mode);
+        rpp_popfree_1();
+    }
+    else {
+        dMARK;
+        SV **start = MARK;
+        if (PL_op->op_flags & OPf_STACKED)
+            ++start;
+        fp = PerlProc_popen_list(mode, PL_stack_sp - start, start+1);
+        rpp_popfree_to(MARK);
+    }
     if (fp) {
         const char * const type = Perl_PerlIO_context_layers(aTHX_ NULL);
         if (type && *type)

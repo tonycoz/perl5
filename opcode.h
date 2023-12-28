@@ -17,6 +17,7 @@
 
 #define Perl_pp_scalar Perl_pp_null
 #define Perl_pp_padany Perl_unimplemented_op
+#define Perl_pp_backticklist Perl_pp_backtick
 #define Perl_pp_regcmaybe Perl_pp_null
 #define Perl_pp_transr Perl_pp_trans
 #define Perl_pp_chomp Perl_pp_chop
@@ -171,6 +172,7 @@ EXTCONST char* const PL_op_name[] INIT({
 	"ref",
 	"bless",
 	"backtick",
+	"backticklist",
 	"glob",
 	"readline",
 	"rcatline",
@@ -597,6 +599,7 @@ EXTCONST char* const PL_op_desc[] INIT({
 	"reference-type operator",
 	"bless",
 	"quoted execution (``, qx)",
+	"readpipe LIST",
 	"glob",
 	"<HANDLE>",
 	"append I/O operator",
@@ -1028,6 +1031,7 @@ INIT({
 	Perl_pp_ref,
 	Perl_pp_bless,
 	Perl_pp_backtick,
+	Perl_pp_backticklist,	/* implemented by Perl_pp_backtick */
 	Perl_pp_glob,
 	Perl_pp_readline,
 	Perl_pp_rcatline,
@@ -1454,6 +1458,7 @@ INIT({
 	Perl_ck_fun,		/* ref */
 	Perl_ck_fun,		/* bless */
 	Perl_ck_backtick,	/* backtick */
+	Perl_ck_exec,		/* backticklist */
 	Perl_ck_glob,		/* glob */
 	Perl_ck_readline,	/* readline */
 	Perl_ck_null,		/* rcatline */
@@ -1879,6 +1884,7 @@ EXTCONST U32 PL_opargs[] INIT({
 	0x00009b8c,	/* ref */
 	0x00091404,	/* bless */
 	0x00009b88,	/* backtick */
+	0x00029409,	/* backticklist */
 	0x00009408,	/* glob */
 	0x0000eb08,	/* readline */
 	0x00000608,	/* rcatline */
@@ -2584,6 +2590,7 @@ EXTCONST I16  PL_op_private_bitdef_ix[] = {
       52, /* ref */
       55, /* bless */
       56, /* backtick */
+      55, /* backticklist */
       55, /* glob */
        0, /* readline */
       -1, /* rcatline */
@@ -3015,7 +3022,7 @@ EXTCONST U16  PL_op_private_bitdefs[] = {
     0x3bac, 0x0003, /* av2arylen, akeys, values, keys */
     0x3e7c, 0x1198, 0x0ef4, 0x014c, 0x4f68, 0x4c64, 0x0003, /* rv2cv */
     0x06d4, 0x0770, 0x0003, /* ref, blessed */
-    0x018f, /* bless, glob, sprintf, formline, unpack, pack, join, anonlist, anonhash, splice, warn, die, reset, exit, close, pipe_op, fileno, umask, binmode, tie, dbmopen, sselect, select, getc, read, enterwrite, sysopen, sysseek, sysread, syswrite, eof, tell, seek, truncate, fcntl, ioctl, send, recv, socket, sockpair, bind, connect, listen, accept, shutdown, gsockopt, ssockopt, open_dir, seekdir, gmtime, shmget, shmctl, shmread, shmwrite, msgget, msgctl, msgsnd, msgrcv, semop, semget, semctl, ghbyaddr, gnbyaddr, gpbynumber, gsbyname, gsbyport, syscall */
+    0x018f, /* bless, backticklist, glob, sprintf, formline, unpack, pack, join, anonlist, anonhash, splice, warn, die, reset, exit, close, pipe_op, fileno, umask, binmode, tie, dbmopen, sselect, select, getc, read, enterwrite, sysopen, sysseek, sysread, syswrite, eof, tell, seek, truncate, fcntl, ioctl, send, recv, socket, sockpair, bind, connect, listen, accept, shutdown, gsockopt, ssockopt, open_dir, seekdir, gmtime, shmget, shmctl, shmread, shmwrite, msgget, msgctl, msgsnd, msgrcv, semop, semget, semctl, ghbyaddr, gnbyaddr, gpbynumber, gsbyname, gsbyport, syscall */
     0x431c, 0x4238, 0x2dd4, 0x2d10, 0x0003, /* backtick */
     0x06d5, /* subst */
     0x129c, 0x24b8, 0x0ad4, 0x4acc, 0x2848, 0x5244, 0x08e1, /* trans, transr */
@@ -3111,6 +3118,7 @@ EXTCONST U8 PL_op_private_valid[] = {
     /* REF        */ (OPpARG1_MASK|OPpMAYBE_TRUEBOOL|OPpTRUEBOOL),
     /* BLESS      */ (OPpARG4_MASK),
     /* BACKTICK   */ (OPpARG1_MASK|OPpOPEN_IN_RAW|OPpOPEN_IN_CRLF|OPpOPEN_OUT_RAW|OPpOPEN_OUT_CRLF),
+    /* BACKTICKLIST */ (OPpARG4_MASK),
     /* GLOB       */ (OPpARG4_MASK),
     /* READLINE   */ (OPpARG1_MASK),
     /* RCATLINE   */ (0),

@@ -8590,6 +8590,14 @@ yyl_word_or_keyword(pTHX_ char *s, STRLEN len, I32 key, I32 orig_keyword, struct
         UNIDOR(OP_READLINE);
 
     case KEY_readpipe:
+        if (FEATURE_READPIPELIST_IS_ENABLED) {
+            s = skipspace(s);
+            /* to avoid silent changes in behaviour, require () for
+               list readpipe
+            */
+            if (*s == '(')
+                LOP(OP_BACKTICKLIST, XTERM);
+        }
         UNIDOR(OP_BACKTICK);
 
     case KEY_rewinddir:

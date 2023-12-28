@@ -99,6 +99,7 @@ my @raw_alias = (
                                          ftfile ftdir ftpipe ftsuid ftsgid
                                          ftsvtx)],
                  Perl_pp_fttext => ['ftbinary'],
+                 Perl_pp_backtick => [ 'backticklist' ],
                  Perl_pp_gmtime => ['localtime'],
                  Perl_pp_semget => [qw(shmget msgget)],
                  Perl_pp_semctl => [qw(shmctl msgctl)],

@@ -74,6 +74,7 @@ bless		bless			ck_fun		s@	S S?
 # Pushy I/O.
 
 backtick	quoted execution (``, qx)	ck_backtick	tu%	S?
+backticklist	readpipe LIST		ck_exec		tm@	S? L
 # glob defaults its first arg to $_
 glob		glob			ck_glob		t@	S?
 readline	<HANDLE>		ck_readline	t%	F?
