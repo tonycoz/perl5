@@ -467,8 +467,10 @@ jobs:
       fail-fast: false
       matrix:
         bitness:
-         - "x64"
-         - "x86"
+          - arg: "x64"
+            WIN64: define
+          - arg: "x86"
+            WIN64: undef
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
@@ -496,9 +498,9 @@ jobs:
       - name: Build
         shell: cmd
         run: |
-          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.bitness }}
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.bitness.arg }}
           cd win32
-          nmake CCTYPE=MSVC142 CFG=Debug
+          nmake CCTYPE=MSVC142 CFG=Debug WIN64=${{ matrix.bitness.WIN64 }}
       - name: Show Config
         shell: cmd
         run: |
@@ -507,9 +509,9 @@ jobs:
       - name: Run Tests
         shell: cmd
         run: |
-          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" x64
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"  ${{ matrix.bitness.arg }}
           cd win32
-          nmake CCTYPE=MSVC142 CFG=Debug test
+          nmake CCTYPE=MSVC142 CFG=Debug WIN64=${{ matrix.bitness.WIN64 }} test
 
   #            _                       __   _  _
   #  _ __ ___ (_)_ __   __ ___      __/ /_ | || |
