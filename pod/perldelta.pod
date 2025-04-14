@@ -366,7 +366,8 @@ manager will later use a regex to expand these into links.
 
 =item *
 
-XXX
+Prevent a signature parameter of the form C<$ => from leaking an OP at
+compile-time.  [GH #23187]
 
 =back
 
