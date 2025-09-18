@@ -411,7 +411,8 @@ sub is ($$@) {
             (length($got)>20 or length($expected)>20))
         {
             my $p = 0;
-            $p++ while substr($got,$p,1) eq substr($expected,$p,1);
+            # don't use ++
+            $p = $p + 1 while substr($got,$p,1) eq substr($expected,$p,1);
             push @mess,"#  diff at $p\n";
             push @mess,"#    after "._qq(substr($got,$p < 40 ? 0  : $p - 40,
                                                      $p < 40 ? $p : 40)) . "\n";
@@ -1574,7 +1575,7 @@ sub run_multiple_progs {
         }
         else {
             print STDERR $err_line;
-            ++$count_failures;
+            $count_failures = $count_failures + 1;
             die "PERL_TEST_ABORT_FIRST_FAILURE set Test Failure"
                 if $ENV{PERL_TEST_ABORT_FIRST_FAILURE};
         }
