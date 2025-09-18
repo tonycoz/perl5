@@ -378,7 +378,7 @@ sub display_rx {
     }
     while (@cp) {
         my $ord = shift @cp;
-        if (32 <= $ord <= 126 and $ord != 37) {
+        if (32 <= $ord && $ord <= 126 and $ord != 37) {
             $escaped .= chr(utf8::unicode_to_native($ord));
         }
         else {
