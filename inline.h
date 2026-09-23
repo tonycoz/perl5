@@ -4135,7 +4135,12 @@ Perl_cx_pushsub(pTHX_ PERL_CONTEXT *cx, CV *cv, OP *retop, bool hasargs)
 
     U8 phlags = CX_PUSHSUB_GET_LVALUE_MASK(Perl_was_lvalue_sub);
 
-    PERL_DTRACE_PROBE_ENTRY(cv);
+    ENTRY_PROBE(CvNAME_HEK(cv)
+                    ? HEK_KEY(CvNAME_HEK(cv))
+                    : GvENAME(CvGV(cv)),
+                CopFILE((const COP *)CvSTART(cv)),
+                CopLINE((const COP *)CvSTART(cv)),
+                CopSTASHPV((const COP *)CvSTART(cv)));
     cx->blk_sub.old_cxsubix     = PL_curstackinfo->si_cxsubix;
     PL_curstackinfo->si_cxsubix = (I32)(cx - PL_curstackinfo->si_cxstack);
     cx->blk_sub.cv = cv;
@@ -4203,7 +4208,12 @@ Perl_cx_popsub(pTHX_ PERL_CONTEXT *cx)
     PERL_ARGS_ASSERT_CX_POPSUB;
     assert(CxTYPE(cx) == CXt_SUB);
 
-    PERL_DTRACE_PROBE_RETURN(cx->blk_sub.cv);
+    RETURN_PROBE(CvNAME_HEK(cx->blk_sub.cv)
+                    ? HEK_KEY(CvNAME_HEK(cx->blk_sub.cv))
+                    : GvENAME(CvGV(cx->blk_sub.cv)),
+            CopFILE((COP*)CvSTART((const CV*)cx->blk_sub.cv)),
+            CopLINE((COP*)CvSTART((const CV*)cx->blk_sub.cv)),
+            CopSTASHPV((COP*)CvSTART((const CV*)cx->blk_sub.cv)));
 
     if (CxHASARGS(cx))
         cx_popsub_args(cx);

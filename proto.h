@@ -19072,43 +19072,6 @@ Perl_get_c_backtrace_dump(pTHX_ int max_depth, int skip)
     } STMT_END
 
 #endif /* defined(USE_C_BACKTRACE) */
-#if defined(USE_DTRACE)
-PERL_CALLCONV void
-Perl_dtrace_probe_call(pTHX_ CV *cv, bool is_call)
-        Perl_attribute_nonnull_aTHX
-        Perl_attribute_nonnull(pTHX_1);
-# define PERL_ARGS_ASSERT_DTRACE_PROBE_CALL     \
-     STMT_START { Perl_assert_aTHX; assert(cv);                              \
-                  assert(SvTYPE(cv) == SVt_PVCV || SvTYPE(cv) == SVt_PVFM);  \
-                  PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;                       \
-    } STMT_END
-
-PERL_CALLCONV void
-Perl_dtrace_probe_load(pTHX_ const char *name, bool is_loading)
-        Perl_attribute_nonnull_aTHX
-        Perl_attribute_nonnull(pTHX_1);
-# define PERL_ARGS_ASSERT_DTRACE_PROBE_LOAD     \
-     STMT_START { Perl_assert_aTHX; assert(name);       \
-                  PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
-    } STMT_END
-
-PERL_CALLCONV void
-Perl_dtrace_probe_op(pTHX_ const OP *op)
-        Perl_attribute_nonnull_aTHX
-        Perl_attribute_nonnull(pTHX_1);
-# define PERL_ARGS_ASSERT_DTRACE_PROBE_OP       \
-     STMT_START { Perl_assert_aTHX; assert(op);         \
-                  PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
-    } STMT_END
-
-PERL_CALLCONV void
-Perl_dtrace_probe_phase(pTHX_ enum perl_phase phase)
-        Perl_attribute_nonnull_aTHX;
-# define PERL_ARGS_ASSERT_DTRACE_PROBE_PHASE    \
-     STMT_START { Perl_assert_aTHX; PERL_UNUSED_CONTEXT_FOR_ARGS_ASSERT;  \
-    } STMT_END
-
-#endif /* defined(USE_DTRACE) */
 #if defined(USE_ITHREADS)
 PERL_CALLCONV PADOFFSET
 Perl_alloccopstash(pTHX_ HV *hv)

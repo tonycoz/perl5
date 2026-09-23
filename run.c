@@ -39,9 +39,9 @@ Perl_runops_standard(pTHX)
     PERL_ARGS_ASSERT_RUNOPS_STANDARD;
 
     OP *op = PL_op;
-    PERL_DTRACE_PROBE_OP(op);
+    OP_ENTRY_PROBE(OP_NAME(op));
     while ((PL_op = op = op->op_ppaddr(aTHX))) {
-        PERL_DTRACE_PROBE_OP(op);
+        OP_ENTRY_PROBE(OP_NAME(op));
     }
     PERL_ASYNC_CHECK();
 

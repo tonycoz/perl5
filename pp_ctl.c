@@ -4972,7 +4972,7 @@ S_require_file(pTHX_ SV *sv)
         }
     }
 
-    PERL_DTRACE_PROBE_FILE_LOADING(unixname);
+    LOADING_FILE_PROBE(unixname);
 
     /* Try to locate and open a file, possibly using @INC  */
 
@@ -5565,7 +5565,7 @@ S_require_file(pTHX_ SV *sv)
     else
         op = PL_op->op_next;
 
-    PERL_DTRACE_PROBE_FILE_LOADED(unixname);
+    LOADED_FILE_PROBE(unixname);
 
     return op;
 }
